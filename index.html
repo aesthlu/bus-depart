@@ -114,7 +114,9 @@
   .badge { flex: none; min-width: 44px; height: 30px; padding: 0 8px; border-radius: 8px;
     display: grid; place-items: center; font-weight: 700; font-size: 15px; }
   .dep .info { flex: 1; min-width: 0; }
-  .dep .dir { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .dep .dir { font-weight: 600; }
+  .planned { font-size: 13px; font-weight: 600; text-decoration: line-through; text-decoration-thickness: 2px; margin-left: 2px; }
+  .planned.late { color: var(--soon); } .planned.early { color: var(--accent); }
   .dep .when { text-align: right; flex: none; }
   .dep .mins { font-weight: 700; font-size: 18px; }
   .dep.missed { opacity: .45; }
@@ -317,6 +319,8 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const pad = (n) => String(n).padStart(2, '0');
 const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+// « Juvisy Gare Routière Seine (Juvisy-sur-Orge) » -> « Juvisy Gare Routière Seine »
+const shortDir = (s) => s.replace(/\s*\([^)]*\)\s*$/, '');
 const dirKey = (d) => `${d.code}|${d.direction}`;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -334,10 +338,15 @@ function delayMin(real, base) {
   const r = parseNavitia(real), b = parseNavitia(base);
   return r && b ? Math.round((r - b) / 60000) : 0;
 }
-const delayTag = (d, onTime = false) =>
-  d.delay >= 1 ? `<span class="late">+${d.delay} min</span>`
-  : d.delay <= -1 ? `<span class="early">${d.delay} min</span>`
-  : onTime && d.realtime ? `<span class="ontime">à l'heure</span>` : '';
+// Heure prévue barrée à côté de l'heure en direct (ex. « 19:45 19:43 » avec 19:43 barré) ; « à l'heure » si pile à l'heure
+const delayTag = (d, onTime = false) => {
+  if (Math.abs(d.delay || 0) >= 1) {
+    const planned = new Date(d.time.getTime() - d.delay * 60000);
+    const label = d.delay > 0 ? `retard ${d.delay} min, prévu ${hhmm(planned)}` : `avance ${-d.delay} min, prévu ${hhmm(planned)}`;
+    return `<s class="planned ${d.delay > 0 ? 'late' : 'early'}" title="${label}" aria-label="${label}">${hhmm(planned)}</s>`;
+  }
+  return onTime && d.realtime ? `<span class="ontime">à l'heure</span>` : '';
+};
 
 // Journée de service : les bus après minuit comptent pour la veille (jusqu'à 4 h)
 const serviceDay = (d) => toNavitia(new Date(d.getTime() - 4 * 3600000)).slice(0, 8);
@@ -403,7 +412,7 @@ async function fetchDepartures(stopId) {
       code: di.code || di.label || '?',
       color: di.color ? '#' + di.color : '#64748b',
       textColor: di.text_color ? '#' + di.text_color : '#ffffff',
-      direction: di.direction || di.headsign || '',
+      direction: shortDir(di.direction || di.headsign || ''),
       mode: di.commercial_mode || di.physical_mode || '',
       time: parseNavitia(sdt.departure_date_time),
       realtime: sdt.data_freshness === 'realtime',
@@ -445,7 +454,7 @@ async function fetchJourneys(t) {
         code: di.code || di.label || '?',
         color: di.color ? '#' + di.color : '#64748b',
         textColor: di.text_color ? '#' + di.text_color : '#ffffff',
-        direction: di.direction || di.headsign || '',
+        direction: shortDir(di.direction || di.headsign || ''),
         mode: di.commercial_mode || di.physical_mode || '',
         time: parseNavitia(sec.departure_date_time),
         arrival: parseNavitia(sec.arrival_date_time),
@@ -714,7 +723,7 @@ function render() {
     return `<div class="dep ${missed ? 'missed' : ''}">
       ${badge(d)}
       <div class="info">
-        <div class="dir">${serviceDay(d.time) !== serviceDay(new Date()) ? '<span class="muted">Demain</span> ' : ''}${d.arrival ? `${hhmm(d.time)} → ${hhmm(d.arrival)} <span class="muted small" style="font-weight:400">(${Math.round((d.arrival - d.time) / 60000)} min)</span>` : esc(d.direction)} ${delayTag(d)}</div>
+        <div class="dir">${serviceDay(d.time) !== serviceDay(new Date()) ? '<span class="muted">Demain</span> ' : ''}${d.arrival ? `${hhmm(d.time)} ${delayTag(d)} → ${hhmm(d.arrival)} <span class="muted small" style="font-weight:400">(${Math.round((d.arrival - d.time) / 60000)} min)</span>` : `${esc(d.direction)} ${delayTag(d)}`}</div>
         <div class="small muted">${d.realtime ? '<span class="rt"></span>temps réel · ' : 'théorique · '}${d.arrival ? `dir. ${esc(d.direction)}` : `bus à ${hhmm(d.time)}`}</div>
       </div>
       <div class="when">
