@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cut">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mon Bus">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Mon Bus</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #0f172a; --muted: #64748b;
+    --line: #e2e8f0; --accent: #2563eb; --go: #16a34a; --soon: #ea580c; --late: #94a3b8;
+    --danger: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120; --card: #151d2e; --text: #f1f5f9; --muted: #94a3b8;
+      --line: #263248; --accent: #60a5fa; --go: #4ade80; --soon: #fb923c; --late: #64748b;
+      --danger: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent; }
+  body { padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 24px); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 0 10px; }
+  h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 20px; background: var(--card);
+    display: grid; place-items: center; font-size: 20px; }
+  .card { background: var(--card); border-radius: 18px; padding: 16px; margin-bottom: 12px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; padding: 7px 14px; border-radius: 999px; background: var(--card);
+    font-size: 14px; white-space: nowrap; }
+  .chip.active { background: var(--accent); color: #fff; }
+
+  select { width: 100%; font: inherit; font-size: 16px; padding: 11px 12px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); -webkit-appearance: none; appearance: none; }
+  .walk-edit { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .walk-edit input { width: 64px !important; padding: 6px 8px !important; text-align: center; }
+  .athome { margin-top: 6px; font-size: 14px; }
+  .late, .early, .ontime { font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 6px; vertical-align: middle; }
+  .late { color: var(--soon); background: color-mix(in srgb, var(--soon) 15%, transparent); }
+  .early { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .ontime { color: var(--go); background: color-mix(in srgb, var(--go) 15%, transparent); }
+  /* Feu tricolore : tout l'écran prend la couleur de l'urgence */
+  html[data-state="go"]   { --s-bg: #EAF3DE; --s-fg: #173404; --s-mid: #3B6D11; --s-light: #639922; }
+  html[data-state="soon"] { --s-bg: #FAEEDA; --s-fg: #412402; --s-mid: #854F0B; --s-light: #EF9F27; }
+  html[data-state="now"]  { --s-bg: #FCEBEB; --s-fg: #501313; --s-mid: #A32D2D; --s-light: #E24B4A; }
+  @media (prefers-color-scheme: dark) {
+    html[data-state="go"]   { --s-bg: #173404; --s-fg: #EAF3DE; --s-mid: #97C459; --s-light: #639922; }
+    html[data-state="soon"] { --s-bg: #412402; --s-fg: #FAEEDA; --s-mid: #FAC775; --s-light: #EF9F27; }
+    html[data-state="now"]  { --s-bg: #501313; --s-fg: #FCEBEB; --s-mid: #F09595; --s-light: #E24B4A; }
+  }
+  html { transition: background-color .5s ease; }
+  html[data-state="go"], html[data-state="soon"], html[data-state="now"] {
+    background: var(--s-bg); --text: var(--s-fg); --muted: var(--s-mid); color: var(--s-fg); }
+  html[data-state="go"] body, html[data-state="soon"] body, html[data-state="now"] body { background: transparent; color: var(--s-fg); }
+  html[data-state="go"] #main .card, html[data-state="soon"] #main .card, html[data-state="now"] #main .card,
+  html[data-state="go"] .icon-btn, html[data-state="soon"] .icon-btn, html[data-state="now"] .icon-btn,
+  html[data-state="go"] .chip:not(.active), html[data-state="soon"] .chip:not(.active), html[data-state="now"] .chip:not(.active) {
+    background: color-mix(in srgb, var(--card) 60%, transparent); --line: color-mix(in srgb, var(--s-mid) 25%, transparent); }
+  html[data-state="now"] .hero .big { animation: pulse 1s infinite; }
+  .hero { text-align: center; padding: 8px 8px 22px; }
+  .hero .label { font-size: 15px; color: var(--muted); }
+  .hero .mood { margin-top: 18px; font-size: 18px; font-weight: 600; color: var(--muted); }
+  .hero .big { font-size: 112px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin: 6px 0 0; color: var(--text); }
+  .hero .big.long { font-size: 72px; }
+  .hero .unit { font-size: 20px; font-weight: 600; }
+  .hero .sub { margin-top: 10px; font-size: 16px; color: var(--muted); }
+  .hero .sub b { color: var(--text); }
+  .planb { margin: 14px auto 0; display: inline-block; padding: 8px 14px; border-radius: 12px; font-size: 15px;
+    background: color-mix(in srgb, var(--card) 60%, transparent); }
+  .lights { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; background: currentColor; opacity: .15; }
+  .lights i.on { opacity: 1; }
+  .lights i:nth-child(1).on { background: #639922; } .lights i:nth-child(2).on { background: #EF9F27; } .lights i:nth-child(3).on { background: #E24B4A; }
+  .tl { list-style: none; margin: 0; padding: 0; }
+  .tl li { position: relative; display: flex; gap: 12px; padding-bottom: 16px; }
+  .tl li:last-child { padding-bottom: 0; }
+  .tl li.seg-walk::before, .tl li.seg-bus::before { content: ""; position: absolute; left: 14px; top: 30px; bottom: 2px; width: 3px; border-radius: 2px; }
+  .tl li.seg-walk::before { background: repeating-linear-gradient(to bottom, var(--muted) 0 4px, transparent 4px 8px); opacity: .6; }
+  .tl li.seg-bus::before { background: var(--accent); }
+  .tl-dot { flex: none; width: 31px; height: 31px; display: grid; place-items: center; font-size: 18px; }
+  .tl-name { font-weight: 600; }
+  .tl-info { font-size: 14px; color: var(--muted); }
+  .tl-info b { color: var(--text); }
+  .lastbus { margin: 10px auto 0; display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: 14px; font-weight: 600;
+    color: var(--soon); background: color-mix(in srgb, var(--soon) 15%, transparent); }
+  .swap { display: inline-block; margin-left: 6px; padding: 3px 10px; border-radius: 999px; background: var(--bg);
+    color: var(--accent); font-size: 13px; font-weight: 600; vertical-align: middle; }
+  .kicker { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .kicker b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .nextbus { margin: 14px auto 0; padding: 10px 14px; border-radius: 14px; background: var(--bg); display: inline-block; font-size: 16px; }
+  .nextbus .kicker { margin-bottom: 4px; }
+  .hero .big, .dep .mins { font-variant-numeric: tabular-nums; }
+
+  .walk { display: flex; gap: 8px; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
+
+  .dep { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+  .dep:first-child { border-top: 0; }
+  .badge { flex: none; min-width: 44px; height: 30px; padding: 0 8px; border-radius: 8px;
+    display: grid; place-items: center; font-weight: 700; font-size: 15px; }
+  .dep .info { flex: 1; min-width: 0; }
+  .dep .dir { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .dep .when { text-align: right; flex: none; }
+  .dep .mins { font-weight: 700; font-size: 18px; }
+  .dep.missed { opacity: .45; }
+  .rt { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--go);
+    margin-right: 4px; vertical-align: middle; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .leave-go { color: var(--go); } .leave-soon { color: var(--soon); } .leave-now { color: var(--danger); }
+
+  /* Settings */
+  .sheet { position: fixed; inset: 0; background: var(--bg); overflow-y: auto; z-index: 10;
+    padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 32px);
+    transform: translateY(100%); transition: transform .25s ease; }
+  .sheet.open { transform: none; }
+  .sheet h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+    margin: 22px 4px 8px; font-weight: 600; }
+  label.field { display: block; margin-bottom: 12px; }
+  label.field span { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  input[type=text], input[type=search], input[type=password], input[type=number] {
+    width: 100%; font: inherit; font-size: 16px; padding: 11px 12px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .btn { display: block; width: 100%; padding: 12px; border-radius: 12px; background: var(--accent);
+    color: #fff; font-weight: 600; text-align: center; }
+  .btn.secondary { background: var(--bg); color: var(--accent); border: 1px solid var(--line); }
+  .list-item { display: flex; align-items: center; gap: 10px; padding: 11px 2px; border-top: 1px solid var(--line); }
+  .list-item:first-child { border-top: 0; }
+  .list-item .grow { flex: 1; min-width: 0; }
+  .list-item .del { color: var(--danger); font-size: 14px; }
+  .lines { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .lines .badge { min-width: 40px; height: 28px; font-size: 14px; opacity: .35; }
+  .lines .badge.on { opacity: 1; }
+  .picker { margin-bottom: 14px; }
+  .picker-title { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+  .picker-chosen:empty { display: none; }
+  .picker-chosen { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px;
+    background: var(--bg); border: 1px solid var(--line); font-weight: 600; }
+  .link-btn { color: var(--accent); font-size: 14px; padding: 8px 2px 0; }
+  .btn:disabled { opacity: .4; }
+  .trip-name { font-weight: 600; padding: 8px 10px !important; }
+  .dir-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 15px; }
+  .dir-row input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; margin: 0; }
+  .dir-row .badge { min-width: 38px; height: 26px; font-size: 13px; }
+  .dir-row .grow { flex: 1; min-width: 0; }
+  .then { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; }
+  .toggle-all { display: block; width: 100%; padding: 10px; margin-bottom: 12px; color: var(--accent); font-size: 15px; font-weight: 600; }
+  .star { font-size: 14px; color: var(--muted); white-space: nowrap; }
+  .star.on { color: var(--soon); font-weight: 600; }
+  .here { font-size: 14px; }
+  .here b { font-weight: 600; }
+  .error { color: var(--danger); font-size: 14px; margin-top: 8px; }
+  a { color: var(--accent); }
+  .empty { text-align: center; padding: 40px 16px; }
+  .empty .big-emoji { font-size: 48px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Mon Bus</h1>
+  <div class="row" style="flex:none; gap:8px">
+    <button class="icon-btn" id="refreshBtn" aria-label="Actualiser">↻</button>
+    <button class="icon-btn" id="settingsBtn" aria-label="Réglages">⚙︎</button>
+  </div>
+</header>
+
+<div class="chips" id="stopChips"></div>
+<main id="main"></main>
+
+<!-- Réglages -->
+<section class="sheet" id="sheet" aria-label="Réglages">
+  <header style="padding-top:6px">
+    <h1>Réglages</h1>
+    <button class="icon-btn" id="closeSheet" aria-label="Fermer">✕</button>
+  </header>
+
+  <h2>Clé API Île-de-France Mobilités</h2>
+  <div class="card">
+    <label class="field">
+      <span>Clé « PRIM » (gratuite)</span>
+      <input type="password" id="apiKey" autocomplete="off" spellcheck="false" placeholder="Colle ta clé ici">
+    </label>
+    <div class="small muted">
+      Crée un compte sur <a href="https://prim.iledefrance-mobilites.fr" target="_blank" rel="noopener">prim.iledefrance-mobilites.fr</a>,
+      puis « Mes jetons d'authentification » → génère une clé. Elle reste uniquement sur ton téléphone.
+    </div>
+  </div>
+
+  <h2>Mes lieux</h2>
+  <div class="card">
+    <div id="myPlaces"></div>
+    <label class="field" style="margin-top:10px">
+      <span>Ajouter un lieu</span>
+      <input type="text" id="newPlaceName" placeholder="Nom (ex. 🏠 Maison, 💼 Travail)">
+    </label>
+    <input type="search" id="placeSearch" placeholder="Adresse (ex. 12 rue de Paris, Juvisy)">
+    <div id="placeResults"></div>
+    <div class="small muted" style="margin-top:8px">Tes adresses restent uniquement sur ton téléphone.</div>
+  </div>
+
+  <h2>Nouveau trajet</h2>
+  <div class="card">
+    <label class="field">
+      <span>Nom du trajet</span>
+      <input type="text" id="newTripName" placeholder="ex. Départ de la maison">
+    </label>
+    <label class="field">
+      <span>🏠 Partir d'un lieu (facultatif)</span>
+      <select id="newFromPlace"></select>
+    </label>
+    <div class="picker" data-kind="from">
+      <div class="picker-title">🟢 Arrêt de départ</div>
+      <div class="picker-chosen"></div>
+      <div class="picker-search">
+        <input type="search" placeholder="Où tu montes (ex. Paris Jardin)">
+        <button class="link-btn nearby">📍 Arrêts autour de moi</button>
+      </div>
+      <div class="picker-results"></div>
+    </div>
+    <div class="picker" data-kind="to">
+      <div class="picker-title">🔴 Arrêt d'arrivée</div>
+      <div class="picker-chosen"></div>
+      <div class="picker-search">
+        <input type="search" placeholder="Où tu descends (ex. Juvisy)">
+      </div>
+      <div class="picker-results"></div>
+    </div>
+    <label class="field">
+      <span>🏁 Arriver à un lieu (facultatif)</span>
+      <select id="newToPlace"></select>
+    </label>
+    <button class="btn" id="createTrip" disabled>Créer le trajet</button>
+    <div id="createMsg"></div>
+  </div>
+
+  <h2>Mes trajets</h2>
+  <div class="card" id="myStops"></div>
+
+  <h2>Trajet à pied</h2>
+  <div class="card">
+    <div class="row">
+      <label class="field"><span>Vitesse de marche (km/h)</span>
+        <input type="number" id="speed" min="2" max="8" step="0.5" inputmode="decimal"></label>
+      <label class="field"><span>Marge de sécurité (min)</span>
+        <input type="number" id="margin" min="0" max="15" step="1" inputmode="numeric"></label>
+    </div>
+    <label class="field"><span>🏃 Retard rattrapable en courant (min)</span>
+      <input type="number" id="runTolerance" min="0" max="10" step="1" inputmode="numeric"></label>
+    <div class="small muted">Retard rattrapable : si tu dépasses ton heure de départ de moins de ce temps, l'app garde le bus affiché (« Cours ») avec le bus suivant en plan B. Au-delà, elle passe au suivant.<br>
+      La vitesse sert à estimer le temps de marche depuis tes lieux quand l'itinéraire piéton IDFM n'est pas disponible. Tu peux corriger ce temps dans chaque trajet.</div>
+  </div>
+</section>
+
+<script>
+const API = 'https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia';
+const REFRESH_MS = 30000;
+const DETOUR = 1.3;
+
+// ---------- État persistant ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('monbus.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('monbus.' + k, JSON.stringify(v)); } catch {} },
+};
+const state = {
+  apiKey: store.get('apiKey', ''),
+  // Trajets : [{id, name, stopId, stopName, toId, toName, lat, lon, lines: null | [codes], hiddenDirs: ["code|direction"],
+  //            fromPlace, fromWalk (min, lieu → arrêt de départ), toPlace, toWalk (min, arrêt d'arrivée → lieu)}]
+  // (les anciens trajets sans arrêt d'arrivée affichent tous les départs, filtrés par direction)
+  stops: store.get('stops', []).map(t => t.stopId ? t : { ...t, stopId: t.id, stopName: t.name }),
+  defaultTrip: store.get('defaultTrip', null),
+  eveningTrip: store.get('eveningTrip', null),   // trajet affiché à partir de switchHour (facultatif)
+  switchHour: store.get('switchHour', 14),
+  places: store.get('places', []),      // Lieux : [{id, name, label, lat, lon}]
+  cache: store.get('cache', {}),         // tripId -> {at, deps} : derniers horaires connus
+  showAll: false,
+  current: store.get('current', null),
+  speed: store.get('speed', 4.5),
+  margin: store.get('margin', 1),
+  runTolerance: store.get('runTolerance', 3),  // retard rattrapable en courant (min)
+  departures: [],
+  allLines: {},                          // stopId -> {code: {color,text}}
+  allDirs: {},                           // stopId -> {"code|direction": {code, direction, color, text}}
+  position: null,                        // {lat, lon, acc}
+  loading: false,
+  error: null,
+  lastUpdate: null,
+};
+const save = () => {
+  store.set('apiKey', state.apiKey); store.set('stops', state.stops);
+  store.set('current', state.current); store.set('speed', state.speed); store.set('margin', state.margin); store.set('runTolerance', state.runTolerance);
+  store.set('defaultTrip', state.defaultTrip);
+  store.set('eveningTrip', state.eveningTrip); store.set('switchHour', state.switchHour);
+  store.set('places', state.places);
+};
+
+// ---------- Utilitaires ----------
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const dirKey = (d) => `${d.code}|${d.direction}`;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+// Navitia renvoie l'heure locale (Europe/Paris) au format 20261017T141500
+function parseNavitia(s) {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})$/.exec(s);
+  if (!m) return null;
+  // Conversion fiable depuis Europe/Paris quel que soit le fuseau du téléphone
+  const asUTC = Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  const parisOffset = tzOffsetMinutes(new Date(asUTC), 'Europe/Paris');
+  return new Date(asUTC - parisOffset * 60000);
+}
+// Écart entre l'heure temps réel et l'heure prévue, en minutes (positif = retard)
+function delayMin(real, base) {
+  const r = parseNavitia(real), b = parseNavitia(base);
+  return r && b ? Math.round((r - b) / 60000) : 0;
+}
+const delayTag = (d, onTime = false) =>
+  d.delay >= 1 ? `<span class="late">+${d.delay} min</span>`
+  : d.delay <= -1 ? `<span class="early">${d.delay} min</span>`
+  : onTime && d.realtime ? `<span class="ontime">à l'heure</span>` : '';
+
+// Journée de service : les bus après minuit comptent pour la veille (jusqu'à 4 h)
+const serviceDay = (d) => toNavitia(new Date(d.getTime() - 4 * 3600000)).slice(0, 8);
+const parisHour = () => +toNavitia(new Date()).slice(9, 11);
+
+// Inverse : Date -> 20261017T141500 (heure de Paris)
+function toNavitia(date) {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .formatToParts(date).reduce((a, x) => (a[x.type] = x.value, a), {});
+  return `${p.year}${p.month}${p.day}T${p.hour}${p.minute}${p.second}`;
+}
+function tzOffsetMinutes(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .formatToParts(date).reduce((a, p) => (a[p.type] = p.value, a), {});
+  const local = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return Math.round((local - date.getTime()) / 60000);
+}
+
+function haversine(a, b) {
+  const R = 6371000, toRad = (x) => x * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+async function api(path) {
+  if (!state.apiKey) throw new Error('NO_KEY');
+  const res = await fetch(`${API}/${path}`, { headers: { apikey: state.apiKey } });
+  if (res.status === 401 || res.status === 403) throw new Error('Clé API refusée. Vérifie-la dans les réglages.');
+  if (res.status === 429) throw new Error('Trop de requêtes, réessaie dans un instant.');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (['no_departure_this_day', 'unknown_object', 'no_solution', 'date_out_of_bounds'].includes(data?.error?.id)) return data;
+    throw new Error(data?.error?.message || data?.message || `Erreur ${res.status}`);
+  }
+  return data;
+}
+
+// ---------- Géolocalisation ----------
+function getPositionOnce() {
+  return new Promise((resolve, reject) => {
+    if (state.position) return resolve(state.position);
+    navigator.geolocation.getCurrentPosition(
+      (p) => { state.position = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }; resolve(state.position); },
+      (e) => reject(new Error(e.code === 1 ? 'Autorise la localisation pour Safari dans Réglages iPhone.' : 'Position indisponible.')),
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  });
+}
+
+// ---------- Données ----------
+const currentStop = () => state.stops.find(s => s.id === state.current) || state.stops[0] || null;
+
+// Récupère les départs d'un arrêt et mémorise ses lignes/directions (partagées entre trajets du même arrêt)
+async function fetchDepartures(stopId) {
+  const data = await api(`stop_areas/${encodeURIComponent(stopId)}/departures?count=40&data_freshness=realtime&depth=1`);
+  const deps = (data.departures || []).map(d => {
+    const di = d.display_informations || {};
+    const sdt = d.stop_date_time || {};
+    return {
+      code: di.code || di.label || '?',
+      color: di.color ? '#' + di.color : '#64748b',
+      textColor: di.text_color ? '#' + di.text_color : '#ffffff',
+      direction: di.direction || di.headsign || '',
+      mode: di.commercial_mode || di.physical_mode || '',
+      time: parseNavitia(sdt.departure_date_time),
+      realtime: sdt.data_freshness === 'realtime',
+      delay: delayMin(sdt.departure_date_time, sdt.base_departure_date_time),
+    };
+  }).filter(d => d.time).sort((a, b) => a.time - b.time);
+  const lines = {};
+  const dirs = { ...(state.allDirs[stopId] || {}) };
+  deps.forEach(d => {
+    lines[d.code] = { color: d.color, text: d.textColor, mode: d.mode };
+    dirs[dirKey(d)] = { code: d.code, direction: d.direction, color: d.color, text: d.textColor };
+  });
+  state.allLines[stopId] = lines;
+  state.allDirs[stopId] = dirs;
+  return deps;
+}
+
+// Lignes/directions mémorisées : par trajet (mode départ→arrivée) ou par arrêt (ancien mode)
+const metaKey = (t) => t.toId ? t.id : t.stopId;
+
+// Bus directs de l'arrêt de départ vers l'arrêt d'arrivée (API itinéraires, sans correspondance)
+async function fetchJourneys(t) {
+  const found = new Map();
+  let datetime = null;
+  // Le soir, on cherche plus loin pour savoir quel est le dernier bus de la journée
+  const evening = parisHour() >= 20 || parisHour() < 4;
+  const today = serviceDay(new Date());
+  const seesTomorrow = () => [...found.values()].some(d => serviceDay(d.time) !== today);
+  for (let i = 0; i < (evening ? 5 : 2) && (found.size < 6 || (evening && !seesTomorrow())); i++) {
+    const data = await api(`journeys?from=${encodeURIComponent(t.stopId)}&to=${encodeURIComponent(t.toId)}`
+      + `&max_nb_transfers=0&direct_path=none&count=10&min_nb_journeys=6&data_freshness=realtime`
+      + (datetime ? `&datetime=${datetime}` : ''));
+    let last = null;
+    for (const j of data.journeys || []) {
+      const pt = (j.sections || []).filter(x => x.type === 'public_transport');
+      if (pt.length !== 1) continue;
+      const sec = pt[0], di = sec.display_informations || {};
+      const d = {
+        code: di.code || di.label || '?',
+        color: di.color ? '#' + di.color : '#64748b',
+        textColor: di.text_color ? '#' + di.text_color : '#ffffff',
+        direction: di.direction || di.headsign || '',
+        mode: di.commercial_mode || di.physical_mode || '',
+        time: parseNavitia(sec.departure_date_time),
+        arrival: parseNavitia(sec.arrival_date_time),
+        realtime: (sec.data_freshness || j.data_freshness) === 'realtime',
+        delay: delayMin(sec.departure_date_time, sec.base_departure_date_time),
+      };
+      if (!d.time) continue;
+      found.set(`${d.code}|${d.time.getTime()}`, d);
+      if (!last || d.time > last) last = d.time;
+    }
+    if (!last) {
+      // Plus aucun bus : chercher le premier de la journée suivante
+      if (found.size || i > 0) break;
+      datetime = `${serviceDay(new Date(Date.now() + 86400000))}T040000`;
+      continue;
+    }
+    datetime = toNavitia(new Date(last.getTime() + 60000));
+  }
+  const deps = [...found.values()].sort((a, b) => a.time - b.time);
+  const lines = { ...(state.allLines[t.id] || {}) };
+  deps.forEach(d => { lines[d.code] = { color: d.color, text: d.textColor, mode: d.mode }; });
+  state.allLines[t.id] = lines;
+  return deps;
+}
+
+const fetchForTrip = (t) => t.toId ? fetchJourneys(t) : fetchDepartures(t.stopId);
+
+// Derniers horaires connus : affichés immédiatement à l'ouverture, puis rafraîchis
+const CACHE_MAX_AGE = 3 * 3600000;
+function saveCache(trip, deps) {
+  const now = Date.now();
+  Object.keys(state.cache).forEach(k => { if (now - state.cache[k].at > CACHE_MAX_AGE || !state.stops.some(t => t.id === k)) delete state.cache[k]; });
+  state.cache[trip.id] = { at: now, deps: deps.map(d => ({ ...d, time: d.time.getTime(), arrival: d.arrival ? d.arrival.getTime() : null })) };
+  store.set('cache', state.cache);
+}
+function showCached(trip) {
+  const c = trip && state.cache[trip.id];
+  if (!c || Date.now() - c.at > CACHE_MAX_AGE) { state.departures = []; state.lastUpdate = null; return; }
+  state.departures = c.deps.map(d => ({ ...d, time: new Date(d.time), arrival: d.arrival ? new Date(d.arrival) : null }));
+  state.lastUpdate = new Date(c.at);
+}
+function selectTrip(id) {
+  state.current = id; state.error = null; save();
+  showCached(currentStop()); render(); loadDepartures();
+}
+// Trajet affiché à l'ouverture : le ⭐ par défaut (ou le plus proche si l'option est activée)
+function openDefaultTrip() {
+  const exists = (id) => id && state.stops.some(t => t.id === id);
+  const h = parisHour();
+  const isEvening = h >= state.switchHour || h < 4;
+  const id = exists(state.eveningTrip) && isEvening ? state.eveningTrip : state.defaultTrip;
+  if (exists(id)) state.current = id;
+  showCached(currentStop());
+}
+
+async function loadDepartures() {
+  const trip = currentStop();
+  if (!trip || !state.apiKey) { render(); return; }
+  state.loading = true; render();
+  try {
+    const deps = await fetchForTrip(trip);
+    if (currentStop()?.id !== trip.id) return; // l'utilisateur a changé de trajet entre-temps
+    state.departures = deps;
+    saveCache(trip, deps);
+    state.error = null;
+    state.lastUpdate = new Date();
+  } catch (e) {
+    state.error = e.message === 'NO_KEY' ? null : e.message;
+  } finally {
+    state.loading = false; render();
+  }
+}
+
+// À l'ouverture, sélectionne le trajet dont l'arrêt est le plus proche
+// ---------- Lieux ----------
+const placeOf = (id) => id ? state.places.find(p => p.id === id) || null : null;
+
+// Temps de marche lieu ↔ arrêt : itinéraire piéton IDFM, sinon estimation à vol d'oiseau
+async function computeWalk(place, stop) {
+  let min = place.lat != null && stop.lat != null
+    ? Math.max(1, Math.ceil(haversine(place, stop) * DETOUR / (state.speed * 1000 / 60))) : 5;
+  try {
+    const data = await api(`journeys?from=${place.lon};${place.lat}&to=${encodeURIComponent(stop.id)}&direct_path=only&direct_path_mode[]=walking`);
+    const j = (data.journeys || []).find(x => (x.sections || []).every(sec => sec.type !== 'public_transport'));
+    if (j?.duration) min = Math.max(1, Math.ceil(j.duration / 60));
+  } catch { /* on garde l'estimation */ }
+  return min;
+}
+async function fillWalks(t) {
+  const from = placeOf(t.fromPlace), to = placeOf(t.toPlace);
+  if (from && t.fromWalk == null) t.fromWalk = await computeWalk(from, { id: t.stopId, lat: t.lat, lon: t.lon });
+  if (to && t.toWalk == null) t.toWalk = await computeWalk(to, { id: t.toId, lat: t.toLat, lon: t.toLon });
+  save(); renderSettings(); render();
+}
+
+// ---------- Calcul ----------
+// Marche avant le bus : temps fixe depuis le lieu de départ, ou rien si on part de l'arrêt
+function walkInfo(t) {
+  const place = placeOf(t.fromPlace);
+  return place ? { minutes: t.fromWalk ?? 0, from: place.name } : { minutes: 0, atStop: true };
+}
+
+function enrich(stop) {
+  const walk = walkInfo(stop);
+  const walkMin = (walk ? walk.minutes : 0) + Number(state.margin || 0);
+  const now = Date.now();
+  const filter = stop.lines && stop.lines.length ? new Set(stop.lines) : null;
+  const hidden = new Set(stop.hiddenDirs || []);
+  return {
+    walk,
+    deps: state.departures
+      .filter(d => (!filter || filter.has(d.code)) && !hidden.has(dirKey(d)))
+      .map(d => {
+        const leaveAt = new Date(d.time.getTime() - walkMin * 60000);
+        return { ...d, leaveAt, leaveIn: (leaveAt - now) / 60000, busIn: (d.time - now) / 60000 };
+      })
+      .filter(d => d.busIn > -1),
+  };
+}
+
+function fmtCountdown(min) {
+  if (min <= 0) return 'Maintenant';
+  // Sous 5 min : affichage à la seconde (ex. 4:07)
+  if (min < 5) { const sec = Math.floor(min * 60); return `${Math.floor(sec / 60)}:${pad(sec % 60)}`; }
+  if (min < 60) return `${Math.floor(min)} min`;
+  return `${Math.floor(min / 60)} h ${pad(Math.floor(min % 60))}`;
+}
+
+// ---------- Rendu ----------
+function renderChips() {
+  const el = $('#stopChips');
+  if (state.stops.length < 2) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = '';
+  const cur = currentStop();
+  el.innerHTML = state.stops.map(s =>
+    `<button class="chip ${s.id === cur?.id ? 'active' : ''}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('');
+}
+
+function render() {
+  renderChips();
+  const main = $('#main');
+  const stop = currentStop();
+
+  if (!state.apiKey || !stop) {
+    document.documentElement.dataset.state = '';
+    main.innerHTML = `<div class="card empty">
+      <div class="big-emoji">🚌</div>
+      <h2 style="margin:8px 0 6px">Bienvenue</h2>
+      <p class="muted">${!state.apiKey ? 'Ajoute ta clé API IDFM puis crée ton premier trajet.' : 'Crée ton premier trajet (ex. « Aller sur Paris »).'}</p>
+      <button class="btn" id="setupBtn">Configurer</button></div>`;
+    $('#setupBtn').onclick = openSheet;
+    return;
+  }
+
+  screenState = '';
+  const { walk, deps } = enrich(stop);
+  // On garde le bus affiché tant qu'il n'est pas passé, si le retard reste rattrapable en courant
+  const tol = Number(state.runTolerance || 0);
+  const catchable = deps.filter(d => d.busIn > 0 && d.leaveIn > -tol);
+  const next = catchable[0];
+
+
+  let hero;
+  if (state.error && !state.departures.length) {
+    hero = `<div class="card hero"><div class="label">${tripLabel(stop)}</div>
+      <div class="error" style="font-size:16px;margin:14px 0">${esc(state.error)}</div></div>`;
+  } else if (!next) {
+    hero = `<div class="card hero"><div class="label">${tripLabel(stop)}</div>
+      <div class="big" style="font-size:34px">${state.loading ? 'Chargement…' : 'Plus de bus'}</div>
+      <div class="sub muted">${state.loading ? '' : stop.toId ? 'Aucun bus direct prévu prochainement entre ces deux arrêts' : 'Aucun départ prévu prochainement'}</div></div>`;
+  } else {
+    const today = serviceDay(new Date());
+    const tomorrow = serviceDay(next.time) !== today;
+    // Dernier bus : connu seulement si on voit déjà des départs du lendemain
+    const lastToday = deps.some(d => serviceDay(d.time) !== today)
+      ? deps.filter(d => serviceDay(d.time) === today).pop() : null;
+    const lastSoon = !tomorrow && lastToday && lastToday.time - Date.now() < 2.5 * 3600000;
+    const cls = tomorrow ? '' : next.leaveIn < 1 ? 'now' : next.leaveIn <= 5 ? 'soon' : 'go';
+    screenState = cls;
+    const then = tomorrow ? [] : catchable.slice(1, 3).filter(d => serviceDay(d.time) === today);
+    const late = !tomorrow && next.leaveIn <= 0;
+    const planB = late ? catchable.find(d => d.leaveIn > 0) : null;
+    const mood = tomorrow ? ['🌙', 'Plus de bus aujourd’hui'] : late ? ['🏃', 'Cours, le bus passe dans']
+      : next.leaveIn < 1 ? ['🏃', 'Pars maintenant !']
+      : next.leaveIn <= 5 ? ['⏱️', 'Prépare-toi'] : ['🚶', 'Tu as le temps'];
+    let big, unit;
+    if (tomorrow) { big = 'Demain'; unit = `pars à ${hhmm(next.leaveAt)}`; }
+    else if (late) { big = fmtCountdown(next.busIn); unit = `bus de ${hhmm(next.time)}`; }
+    else if (next.leaveIn < 5) { big = fmtCountdown(next.leaveIn); unit = 'avant de partir'; }
+    else if (next.leaveIn < 60) { const m = Math.floor(next.leaveIn); big = String(m); unit = m > 1 ? 'minutes' : 'minute'; }
+    else { big = fmtCountdown(next.leaveIn); unit = 'avant de partir'; }
+    hero = `<div class="hero ${cls || 'calm'}">
+      <div class="label">${tripLabel(stop)}</div>
+      ${lastSoon ? `<div class="lastbus">⚠️ Dernier bus à ${hhmm(lastToday.time)}${lastToday === next ? ' : c’est celui-ci !' : ''}</div>` : ''}
+      <div class="mood"><span aria-hidden="true">${mood[0]}</span> ${mood[1]}</div>
+      <div class="big ${big.length > 5 ? 'long' : ''}">${big}</div>
+      <div class="unit">${unit}</div>
+      ${!tomorrow && next.leaveIn > 0 ? `<div class="sub">Partir à <b>${hhmm(next.leaveAt)}</b></div>` : ''}
+      ${late && planB ? `<div class="planb">Sinon : bus de <b>${hhmm(planB.time)}</b>, partir à <b>${hhmm(planB.leaveAt)}</b>
+        <span class="muted">(dans ${fmtCountdown(planB.leaveIn)})</span></div>` : ''}
+      <div class="lights" aria-hidden="true"><i class="${cls === 'go' ? 'on' : ''}"></i><i class="${cls === 'soon' ? 'on' : ''}"></i><i class="${cls === 'now' ? 'on' : ''}"></i></div>
+    </div>
+    <div class="card">${timeline(stop, next, walk, tomorrow)}
+      ${then.length ? `<div class="then">Bus suivants : ${then.map(d => `<b>${hhmm(d.time)}</b> <span class="muted">(pars ${hhmm(d.leaveAt)})</span>`).join(' · ')}</div>` : ''}
+    </div>`;
+  }
+
+  const list = state.showAll ? deps.slice(0, 12).map(d => {
+    const missed = d.busIn <= 0 || d.leaveIn <= -tol, late = !missed && d.leaveIn <= 0;
+    const lcls = d.leaveIn < 1 ? 'leave-now' : d.leaveIn <= 5 ? 'leave-soon' : 'leave-go';
+    return `<div class="dep ${missed ? 'missed' : ''}">
+      ${badge(d)}
+      <div class="info">
+        <div class="dir">${serviceDay(d.time) !== serviceDay(new Date()) ? '<span class="muted">Demain</span> ' : ''}${d.arrival ? `${hhmm(d.time)} → ${hhmm(d.arrival)} <span class="muted small" style="font-weight:400">(${Math.round((d.arrival - d.time) / 60000)} min)</span>` : esc(d.direction)} ${delayTag(d)}</div>
+        <div class="small muted">${d.realtime ? '<span class="rt"></span>temps réel · ' : 'théorique · '}${d.arrival ? `dir. ${esc(d.direction)}` : `bus à ${hhmm(d.time)}`}</div>
+      </div>
+      <div class="when">
+        <div class="small muted">bus dans</div>
+        <div class="mins">${fmtCountdown(Math.max(0, d.busIn))}</div>
+        <div class="small ${missed ? '' : lcls}">${missed ? (d.busIn <= 0 ? 'parti' : 'trop tard') : late ? '🏃 cours !' : 'partir ' + hhmm(d.leaveAt)}</div>
+      </div></div>`;
+  }).join('') : '';
+
+  const toggle = deps.length > 1 ? `<button class="toggle-all" id="toggleAll">${state.showAll ? 'Masquer les horaires ▴' : 'Tous les horaires ▾'}</button>` : '';
+  const stale = state.lastUpdate && Date.now() - state.lastUpdate > 2 * 60000;
+  const footer = `<div class="small muted" style="text-align:center;margin-top:8px">
+    ${state.loading ? 'Actualisation…' : state.lastUpdate ? `${stale ? '⚠️ Horaires de ' : 'Mis à jour à '}${hhmm(state.lastUpdate)}` : ''}
+    ${state.error && state.departures.length ? `<div class="error">${esc(state.error)}</div>` : ''}</div>`;
+
+  document.documentElement.dataset.state = screenState;
+  main.innerHTML = hero + toggle + (list ? `<div class="card">${list}</div>` : '') + footer;
+  $('#toggleAll')?.addEventListener('click', () => { state.showAll = !state.showAll; render(); });
+}
+
+// Frise du trajet : lieu de départ → arrêt de montée → arrêt de descente → lieu d'arrivée
+function timeline(t, d, walk, tomorrow) {
+  const steps = [];
+  const from = placeOf(t.fromPlace), to = placeOf(t.toPlace);
+  const split = (name) => { const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u.exec(name); return m ? [m[1], m[2]] : ['📍', name]; };
+  if (from) steps.push({ icon: split(from.name)[0], name: split(from.name)[1], info: `Départ <b>${hhmm(d.leaveAt)}</b> · ${walk.minutes} min à pied`, seg: 'walk' });
+  steps.push({ icon: '🚏', name: t.stopName, extra: badge(d, 'display:inline-grid;height:22px;min-width:32px;font-size:12px'),
+    info: `${d.realtime ? '<span class="rt"></span>' : ''}Bus <b>${hhmm(d.time)}</b> ${delayTag(d, true)}`
+      + (tomorrow ? ' · demain' : ` · dans ${fmtCountdown(Math.max(0, d.busIn))}`), seg: t.toId ? 'bus' : null });
+  if (t.toId) steps.push({ icon: '🏁', name: t.toName, info: d.arrival ? `Arrivée <b>${hhmm(d.arrival)}</b>` : '', seg: to ? 'walk' : null });
+  else steps[steps.length - 1].info += ` · dir. ${esc(d.direction)}`;
+  if (to && d.arrival) steps.push({ icon: split(to.name)[0], name: split(to.name)[1], info: `Vers <b>${hhmm(atPlace(t, d))}</b> · ${t.toWalk ?? 0} min à pied` });
+  return `<ol class="tl">${steps.map(st => `<li class="${st.seg ? 'seg-' + st.seg : ''}">
+      <span class="tl-dot" aria-hidden="true">${st.icon}</span>
+      <div><div class="tl-name">${esc(st.name)} ${st.extra || ''}</div><div class="tl-info">${st.info}</div></div>
+    </li>`).join('')}</ol>`;
+}
+
+// État de l'écran (vert / orange / rouge) appliqué au fond de page
+let screenState = '';
+
+// Heure d'arrivée au lieu final (arrivée du bus + marche jusqu'au lieu)
+const atPlace = (t, d) => d.arrival && placeOf(t.toPlace) ? new Date(d.arrival.getTime() + (t.toWalk ?? 0) * 60000) : null;
+
+const badge = (d, style = '') =>
+  `<span class="badge" style="${style};background:${esc(d.color)};color:${esc(d.textColor)}">${esc(d.code)}</span>`;
+
+const tripRoute = (t) => t.toId
+  ? [placeOf(t.fromPlace)?.name, t.stopName, t.toName, placeOf(t.toPlace)?.name].filter(Boolean).join(' → ')
+  : `depuis ${t.stopName}`;
+const originName = (t) => placeOf(t.fromPlace)?.name || t.stopName;
+function tripLabel(t) {
+  const swap = t.toId ? ` <button class="swap" data-swap="${esc(t.id)}" aria-label="Inverser le trajet">⇄ Inverser</button>` : '';
+  return t.name === t.stopName ? esc(t.name) + swap
+    : `<b style="color:var(--text)">${esc(t.name)}</b><br><span class="small">${esc(tripRoute(t))}</span>${swap}`;
+}
+
+// Trajet inverse : réutilise celui qui existe déjà, sinon le crée
+function findReverse(t) {
+  return state.stops.find(x => x.stopId === t.toId && x.toId === t.stopId
+    && (x.fromPlace || null) === (t.toPlace || null) && (x.toPlace || null) === (t.fromPlace || null));
+}
+function createReverse(t) {
+  // « Départ de la maison » inversé devient « Départ de Juvisy » ; sinon « Retour · … »
+  const newOrigin = placeOf(t.toPlace)?.name || t.toName;
+  const name = /^départ de /i.test(t.name) ? `Départ de ${newOrigin}` : `Retour · ${t.name}`;
+  return addTrip(name, { id: t.toId, name: t.toName, lat: t.toLat ?? null, lon: t.toLon ?? null },
+    { id: t.stopId, name: t.stopName, lat: t.lat, lon: t.lon },
+    { fromPlace: t.toPlace || null, fromWalk: t.toWalk ?? null, toPlace: t.fromPlace || null, toWalk: t.fromWalk ?? null });
+}
+
+function walkLine(walk) {
+  const m = Number(state.margin || 0);
+  const marge = m ? ` + ${m} min de marge` : '';
+  return walk.atStop
+    ? `<div>🚏 Départ directement de l'arrêt${m ? ` · ${m} min de marge` : ''}</div>`
+    : `<div>🚶 ${walk.minutes} min de marche depuis ${esc(walk.from)}${marge}</div>`;
+}
+
+// ---------- Réglages ----------
+function openSheet() {
+  renderSettings(); $('#sheet').classList.add('open');
+  // Charger les lignes/directions des arrêts pas encore consultés
+  state.stops.filter(t => !state.allLines[metaKey(t)])
+    .forEach(t => fetchForTrip(t).then(renderSettings).catch(() => {}));
+}
+function closeSheet() { $('#sheet').classList.remove('open'); showCached(currentStop()); render(); loadDepartures(); }
+
+function renderPlaces() {
+  $('#myPlaces').innerHTML = state.places.length ? state.places.map(p => `
+    <div class="list-item" style="display:block">
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="text" class="trip-name grow" data-place-rename="${esc(p.id)}" value="${esc(p.name)}" aria-label="Nom du lieu">
+        <button class="del" data-place-del="${esc(p.id)}">Supprimer</button>
+      </div>
+      <div class="small muted" style="margin-top:4px">📍 ${esc(p.label)}</div>
+    </div>`).join('') : '<div class="muted small">Aucun lieu. Ajoute ton adresse pour des trajets « Départ de la maison ».</div>';
+  // Listes déroulantes du formulaire « Nouveau trajet »
+  ['#newFromPlace', '#newToPlace'].forEach(sel => {
+    const el = $(sel), cur = el.value;
+    el.innerHTML = `<option value="">${sel === '#newToPlace' ? '— Aucun (je descends à l’arrêt) —' : '— Aucun (je pars de l’arrêt) —'}</option>`
+      + state.places.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+    el.value = state.places.some(p => p.id === cur) ? cur : '';
+  });
+}
+
+function renderSettings() {
+  renderPlaces();
+  $('#apiKey').value = state.apiKey;
+  $('#speed').value = state.speed;
+  $('#margin').value = state.margin;
+  $('#runTolerance').value = state.runTolerance;
+  const el = $('#myStops');
+  if (!state.stops.length) { el.innerHTML = '<div class="muted small">Aucun trajet pour l’instant. Crée-en un ci-dessus.</div>'; return; }
+  const switchRow = state.eveningTrip ? `<label class="walk-edit" style="margin:4px 0 10px">🌙 Le trajet du soir s'affiche à partir de
+      <input type="number" min="5" max="23" inputmode="numeric" data-switch value="${state.switchHour}"> h</label>` : '';
+  el.innerHTML = switchRow + state.stops.map(t => {
+    const lines = state.allLines[metaKey(t)];
+    const codes = lines ? Object.keys(lines).sort((a, b) => a.localeCompare(b, 'fr', { numeric: true })) : [];
+    const sel = t.lines && t.lines.length ? new Set(t.lines) : null;
+    return `<div class="list-item" style="display:block">
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="text" class="trip-name grow" data-rename="${esc(t.id)}" value="${esc(t.name)}" aria-label="Nom du trajet">
+        <button class="del" data-del="${esc(t.id)}">Supprimer</button>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px">
+        <button class="star ${state.defaultTrip === t.id ? 'on' : ''}" data-star="${esc(t.id)}">
+          ${state.defaultTrip === t.id ? '⭐ Par défaut' : '☆ Par défaut'}${state.eveningTrip ? ` (avant ${state.switchHour} h)` : ''}</button>
+        <button class="star ${state.eveningTrip === t.id ? 'on' : ''}" data-evening="${esc(t.id)}">
+          ${state.eveningTrip === t.id ? `🌙 Le soir (dès ${state.switchHour} h)` : '☾ Le soir'}</button>
+      </div>
+      <div class="small muted" style="margin-top:4px">🚏 ${esc(tripRoute(t))}
+        ${t.toId ? `· <button class="link-btn" style="padding:0" data-reverse="${esc(t.id)}">↔ Créer le trajet retour</button>` : ''}</div>
+      ${placeOf(t.fromPlace) ? `<label class="walk-edit">🚶 ${esc(placeOf(t.fromPlace).name)} → ${esc(t.stopName)} :
+        <input type="number" min="0" max="60" inputmode="numeric" data-walk="fromWalk" data-trip="${esc(t.id)}" value="${t.fromWalk ?? ''}"> min</label>` : ''}
+      ${placeOf(t.toPlace) ? `<label class="walk-edit">🚶 ${esc(t.toName)} → ${esc(placeOf(t.toPlace).name)} :
+        <input type="number" min="0" max="60" inputmode="numeric" data-walk="toWalk" data-trip="${esc(t.id)}" value="${t.toWalk ?? ''}"> min</label>` : ''}
+      ${codes.length ? `<div class="small muted" style="margin-top:8px">Lignes affichées (touche pour filtrer) :</div>
+        <div class="lines">${codes.map(c => `<button class="badge ${!sel || sel.has(c) ? 'on' : ''}" data-stop="${esc(t.id)}" data-line="${esc(c)}"
+          style="background:${esc(lines[c].color)};color:${esc(lines[c].text)}">${esc(c)}</button>`).join('')}</div>`
+        : `<div class="small muted" style="margin-top:4px">${state.apiKey ? 'Chargement des lignes…' : ''}</div>`}
+      ${t.toId ? '' : dirsBlock(t)}
+    </div>`;
+  }).join('');
+}
+
+function dirsBlock(t) {
+  const all = { ...(state.allDirs[t.stopId] || {}) };
+  const hidden = new Set(t.hiddenDirs || []);
+  // Garder visibles les directions déjà masquées, même sans départ en ce moment
+  hidden.forEach(k => {
+    if (!all[k]) { const [code, ...rest] = k.split('|'); const l = state.allLines[t.stopId]?.[code]; all[k] = { code, direction: rest.join('|'), color: l?.color || '#64748b', text: l?.text || '#fff' }; }
+  });
+  const sel = t.lines && t.lines.length ? new Set(t.lines) : null;
+  const dirs = Object.entries(all)
+    .filter(([, d]) => !sel || sel.has(d.code))
+    .sort(([, a], [, b]) => a.code.localeCompare(b.code, 'fr', { numeric: true }) || a.direction.localeCompare(b.direction, 'fr'));
+  if (!dirs.length) return '';
+  return `<div class="small muted" style="margin-top:12px">Directions (garde seulement celles de ce trajet) :</div>
+    ${dirs.map(([k, d]) => `<label class="dir-row">
+      <input type="checkbox" data-stop="${esc(t.id)}" data-dir="${esc(k)}" ${hidden.has(k) ? '' : 'checked'}>
+      <span class="badge" style="background:${esc(d.color)};color:${esc(d.text)}">${esc(d.code)}</span>
+      <span class="grow">→ ${esc(d.direction)}</span>
+    </label>`).join('')}`;
+}
+
+function stopFromPlace(p, distance) {
+  const sa = p.stop_area || p;
+  const lines = (sa.lines || []).map(l => l.code).filter(Boolean);
+  return {
+    id: sa.id, name: sa.name || p.name,
+    city: (sa.administrative_regions || []).find(r => r.level === 8)?.name || '',
+    lat: sa.coord ? +sa.coord.lat : null, lon: sa.coord ? +sa.coord.lon : null,
+    distance, lineCodes: lines,
+  };
+}
+
+// Sélecteurs « arrêt de départ » / « arrêt d'arrivée »
+const draft = { from: null, to: null };
+const apiErr = (err) => esc(err.message === 'NO_KEY' ? 'Ajoute d’abord ta clé API.' : err.message);
+
+function renderPicker(kind) {
+  const box = document.querySelector(`.picker[data-kind="${kind}"]`);
+  const chosen = draft[kind];
+  box.querySelector('.picker-chosen').innerHTML = chosen
+    ? `<span class="grow">${esc(chosen.name)}</span><button class="link-btn" style="padding:0" data-change="${kind}">Changer</button>` : '';
+  box.querySelector('.picker-search').style.display = chosen ? 'none' : '';
+  if (chosen) box.querySelector('.picker-results').innerHTML = '';
+  $('#createTrip').disabled = !(draft.from && draft.to);
+}
+
+function showPickerResults(kind, items) {
+  const el = document.querySelector(`.picker[data-kind="${kind}"] .picker-results`);
+  if (!items.length) { el.innerHTML = '<div class="muted small" style="margin-top:10px">Aucun arrêt trouvé.</div>'; return; }
+  el.innerHTML = '<div style="margin-top:6px">' + items.map((s, i) => `
+    <div class="list-item">
+      <div class="grow"><div><b>${esc(s.name)}</b></div>
+        <div class="small muted">${esc(s.city)}${s.distance != null ? ` · ${Math.round(s.distance)} m` : ''}</div></div>
+      <button class="chip active" data-pick="${i}">Choisir</button>
+    </div>`).join('') + '</div>';
+  el.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
+    draft[kind] = items[+b.dataset.pick];
+    document.querySelector(`.picker[data-kind="${kind}"] input`).value = '';
+    renderPicker(kind);
+  });
+}
+
+document.querySelectorAll('.picker').forEach(box => {
+  const kind = box.dataset.kind;
+  const results = box.querySelector('.picker-results');
+  let timer;
+  box.querySelector('input').addEventListener('input', (e) => {
+    clearTimeout(timer);
+    const q = e.target.value.trim();
+    if (q.length < 2) { results.innerHTML = ''; return; }
+    timer = setTimeout(async () => {
+      try {
+        const data = await api(`places?q=${encodeURIComponent(q)}&type[]=stop_area&count=10`);
+        showPickerResults(kind, (data.places || []).filter(p => p.stop_area).map(p => stopFromPlace(p)));
+      } catch (err) { results.innerHTML = `<div class="error">${apiErr(err)}</div>`; }
+    }, 350);
+  });
+  box.querySelector('.nearby')?.addEventListener('click', async () => {
+    results.innerHTML = '<div class="muted small" style="margin-top:10px">Localisation…</div>';
+    try {
+      const pos = await getPositionOnce();
+      const data = await api(`coord/${pos.lon};${pos.lat}/places_nearby?type[]=stop_area&distance=800&count=15`);
+      showPickerResults(kind, (data.places_nearby || []).filter(p => p.stop_area).map(p => stopFromPlace(p, +p.distance)));
+    } catch (err) { results.innerHTML = `<div class="error">${apiErr(err)}</div>`; }
+  });
+  box.addEventListener('click', (e) => {
+    if (e.target.closest('[data-change]')) { draft[kind] = null; renderPicker(kind); box.querySelector('input').focus(); }
+  });
+});
+
+function addTrip(name, from, to, places = {}) {
+  const trip = { id: uid(), name, stopId: from.id, stopName: from.name, lat: from.lat, lon: from.lon,
+    toId: to.id, toName: to.name, toLat: to.lat, toLon: to.lon, lines: null, hiddenDirs: [],
+    fromPlace: places.fromPlace || null, fromWalk: places.fromWalk ?? null,
+    toPlace: places.toPlace || null, toWalk: places.toWalk ?? null };
+  state.stops.push(trip);
+  if (!state.defaultTrip || !state.stops.some(t => t.id === state.defaultTrip)) state.defaultTrip = trip.id;
+  state.current = trip.id; save();
+  fetchForTrip(trip).then(renderSettings).catch(() => {});
+  if ((trip.fromPlace && trip.fromWalk == null) || (trip.toPlace && trip.toWalk == null)) fillWalks(trip);
+  return trip;
+}
+
+$('#createTrip').onclick = () => {
+  if (!draft.from || !draft.to) return;
+  if (draft.from.id === draft.to.id) { $('#createMsg').innerHTML = '<div class="error">Le départ et l’arrivée doivent être différents.</div>'; return; }
+  const fromPlace = $('#newFromPlace').value || null, toPlace = $('#newToPlace').value || null;
+  const name = $('#newTripName').value.trim()
+    || (fromPlace ? `Départ de ${placeOf(fromPlace).name}` : `${draft.from.name} → ${draft.to.name}`);
+  addTrip(name, draft.from, draft.to, { fromPlace, toPlace });
+  $('#createMsg').innerHTML = `<div class="small" style="margin-top:10px;color:var(--go)">✓ Trajet « ${esc(name)} » créé.</div>`;
+  $('#newTripName').value = ''; $('#newFromPlace').value = ''; $('#newToPlace').value = ''; draft.from = draft.to = null;
+  renderPicker('from'); renderPicker('to'); renderSettings();
+};
+
+$('#myStops').addEventListener('change', (e) => {
+  const sw = e.target.closest('[data-switch]');
+  if (sw) { state.switchHour = Math.min(23, Math.max(5, Math.round(+sw.value || 14))); save(); renderSettings(); return; }
+  const wk = e.target.closest('[data-walk]');
+  if (wk) {
+    const t = state.stops.find(x => x.id === wk.dataset.trip);
+    t[wk.dataset.walk] = Math.min(60, Math.max(0, Math.round(+wk.value || 0))); wk.value = t[wk.dataset.walk];
+    save(); return;
+  }
+  const rn = e.target.closest('[data-rename]');
+  if (rn) {
+    const t = state.stops.find(x => x.id === rn.dataset.rename);
+    t.name = rn.value.trim() || t.stopName; rn.value = t.name; save(); return;
+  }
+  const cb = e.target.closest('[data-dir]'); if (!cb) return;
+  const s = state.stops.find(x => x.id === cb.dataset.stop);
+  const hidden = new Set(s.hiddenDirs || []);
+  cb.checked ? hidden.delete(cb.dataset.dir) : hidden.add(cb.dataset.dir);
+  s.hiddenDirs = [...hidden];
+  save();
+});
+
+$('#myStops').addEventListener('click', (e) => {
+  const ev = e.target.closest('[data-evening]');
+  if (ev) {
+    state.eveningTrip = state.eveningTrip === ev.dataset.evening ? null : ev.dataset.evening;
+    save(); renderSettings(); return;
+  }
+  const st = e.target.closest('[data-star]');
+  if (st) { state.defaultTrip = st.dataset.star; state.current = st.dataset.star; save(); renderSettings(); return; }
+  const rv = e.target.closest('[data-reverse]');
+  if (rv) {
+    const t = state.stops.find(x => x.id === rv.dataset.reverse);
+    const back = createReverse(t);
+    renderSettings();
+    document.querySelector(`[data-rename="${back.id}"]`)?.select();
+    return;
+  }
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    state.stops = state.stops.filter(s => s.id !== del.dataset.del);
+    if (state.current === del.dataset.del) state.current = state.stops[0]?.id || null;
+    if (state.defaultTrip === del.dataset.del) state.defaultTrip = state.stops[0]?.id || null;
+    if (state.eveningTrip === del.dataset.del) state.eveningTrip = null;
+    state.departures = []; save(); renderSettings(); return;
+  }
+  const lb = e.target.closest('[data-line]');
+  if (lb) {
+    const s = state.stops.find(x => x.id === lb.dataset.stop);
+    const all = Object.keys(state.allLines[metaKey(s)] || {});
+    let sel = new Set(s.lines && s.lines.length ? s.lines : all);
+    sel.has(lb.dataset.line) ? sel.delete(lb.dataset.line) : sel.add(lb.dataset.line);
+    s.lines = sel.size === all.length || sel.size === 0 ? null : [...sel];
+    save(); renderSettings();
+  }
+});
+
+let placeTimer;
+$('#placeSearch').addEventListener('input', (e) => {
+  clearTimeout(placeTimer);
+  const q = e.target.value.trim(), el = $('#placeResults');
+  if (q.length < 3) { el.innerHTML = ''; return; }
+  placeTimer = setTimeout(async () => {
+    try {
+      const data = await api(`places?q=${encodeURIComponent(q)}&type[]=address&count=8`);
+      const items = (data.places || []).filter(p => (p.address || p).coord).map(p => {
+        const a = p.address || p;
+        return { label: p.name || a.label || a.name, lat: +a.coord.lat, lon: +a.coord.lon };
+      });
+      el.innerHTML = items.length ? '<div style="margin-top:6px">' + items.map((a, i) => `
+        <div class="list-item"><div class="grow">${esc(a.label)}</div>
+          <button class="chip active" data-place-add="${i}">Choisir</button></div>`).join('') + '</div>'
+        : '<div class="muted small" style="margin-top:10px">Aucune adresse trouvée.</div>';
+      el.querySelectorAll('[data-place-add]').forEach(b => b.onclick = () => {
+        const a = items[+b.dataset.placeAdd];
+        const name = $('#newPlaceName').value.trim() || (state.places.length ? a.label.split(' (')[0] : '🏠 Maison');
+        state.places.push({ id: uid(), name, label: a.label, lat: a.lat, lon: a.lon });
+        save();
+        $('#newPlaceName').value = ''; $('#placeSearch').value = '';
+        el.innerHTML = `<div class="small" style="margin-top:10px;color:var(--go)">✓ Lieu « ${esc(name)} » ajouté. Tu peux le choisir dans « Nouveau trajet ».</div>`;
+        renderPlaces();
+      });
+    } catch (err) { el.innerHTML = `<div class="error">${apiErr(err)}</div>`; }
+  }, 400);
+});
+$('#myPlaces').addEventListener('change', (e) => {
+  const rn = e.target.closest('[data-place-rename]'); if (!rn) return;
+  const p = placeOf(rn.dataset.placeRename);
+  p.name = rn.value.trim() || p.name; rn.value = p.name; save(); renderSettings();
+});
+$('#myPlaces').addEventListener('click', (e) => {
+  const del = e.target.closest('[data-place-del]'); if (!del) return;
+  const id = del.dataset.placeDel;
+  state.places = state.places.filter(p => p.id !== id);
+  state.stops.forEach(t => {
+    if (t.fromPlace === id) { t.fromPlace = null; t.fromWalk = null; }
+    if (t.toPlace === id) { t.toPlace = null; t.toWalk = null; }
+  });
+  save(); renderSettings();
+});
+
+$('#apiKey').addEventListener('change', (e) => { state.apiKey = e.target.value.trim(); save(); });
+$('#speed').addEventListener('change', (e) => { state.speed = Math.min(8, Math.max(2, +e.target.value || 4.5)); save(); });
+$('#runTolerance').addEventListener('change', (e) => { state.runTolerance = Math.min(10, Math.max(0, Math.round(+e.target.value || 0))); save(); });
+$('#margin').addEventListener('change', (e) => { state.margin = Math.min(15, Math.max(0, Math.round(+e.target.value || 0))); save(); });
+$('#settingsBtn').onclick = openSheet;
+$('#closeSheet').onclick = closeSheet;
+$('#main').addEventListener('click', (e) => {
+  const sw = e.target.closest('[data-swap]'); if (!sw) return;
+  const t = state.stops.find(x => x.id === sw.dataset.swap);
+  const back = findReverse(t) || createReverse(t);
+  selectTrip(back.id);
+});
+$('#refreshBtn').onclick = () => loadDepartures();
+$('#stopChips').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-id]'); if (!c) return;
+  selectTrip(c.dataset.id);
+});
+
+// ---------- Boucle ----------
+let refreshTimer;
+function schedule() { clearInterval(refreshTimer); refreshTimer = setInterval(loadDepartures, REFRESH_MS); }
+setInterval(() => { if (!$('#sheet').classList.contains('open') && document.visibilityState === 'visible') render(); }, 1000);
+let hiddenAt = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    // Revenir au trajet par défaut si l'app est restée en arrière-plan plus de 5 min
+    if (Date.now() - hiddenAt > 5 * 60000) openDefaultTrip();
+    render(); loadDepartures(); schedule();
+  } else { hiddenAt = Date.now(); clearInterval(refreshTimer); }
+});
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+openDefaultTrip();
+render();
+loadDepartures();
+schedule();
+</script>
+</body>
+</html>
