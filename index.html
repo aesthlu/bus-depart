@@ -270,6 +270,8 @@
 
 <script>
 const API = 'https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia';
+// « Prochains passages » (SIRI Lite) : temps réel des bus, même source que les écrans aux arrêts
+const SIRI_API = 'https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring';
 const REFRESH_MS = 30000;
 const DETOUR = 1.3;
 
@@ -449,6 +451,7 @@ async function fetchJourneys(t) {
         arrival: parseNavitia(sec.arrival_date_time),
         realtime: (sec.data_freshness || j.data_freshness) === 'realtime',
         delay: delayMin(sec.departure_date_time, sec.base_departure_date_time),
+        lineId: (sec.links || []).find(l => l.type === 'line')?.id || (di.links || []).find(l => l.type === 'line')?.id || '',
       };
       if (!d.time) continue;
       found.set(`${d.code}|${d.time.getTime()}`, d);
@@ -463,10 +466,64 @@ async function fetchJourneys(t) {
     datetime = toNavitia(new Date(last.getTime() + 60000));
   }
   const deps = [...found.values()].sort((a, b) => a.time - b.time);
+  await applyLive(t.stopId, deps);
+  deps.sort((a, b) => a.time - b.time);
   const lines = { ...(state.allLines[t.id] || {}) };
   deps.forEach(d => { lines[d.code] = { color: d.color, text: d.textColor, mode: d.mode }; });
   state.allLines[t.id] = lines;
   return deps;
+}
+
+// Passages en direct à un arrêt (SIRI Lite). Renvoie [] si indisponible.
+async function fetchLive(stopId) {
+  const num = /(\d+)$/.exec(stopId || '')?.[1];
+  if (!num || !state.apiKey) return [];
+  try {
+    const res = await fetch(`${SIRI_API}?MonitoringRef=${encodeURIComponent(`STIF:StopArea:SP:${num}:`)}`, { headers: { apikey: state.apiKey } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const val = (x) => Array.isArray(x) ? x[0]?.value : x?.value ?? x;
+    const visits = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+    return visits.map(v => {
+      const mvj = v.MonitoredVehicleJourney || {}, call = mvj.MonitoredCall || {};
+      const expected = call.ExpectedDepartureTime || call.ExpectedArrivalTime;
+      const aimed = call.AimedDepartureTime || call.AimedArrivalTime;
+      return {
+        line: String(val(mvj.LineRef) || ''),
+        expected: expected ? new Date(expected) : null,
+        aimed: aimed ? new Date(aimed) : null,
+        cancelled: /cancel/i.test(call.DepartureStatus || call.ArrivalStatus || ''),
+      };
+    }).filter(v => v.expected || v.aimed);
+  } catch { return []; }
+}
+
+// Remplace l'horaire théorique de chaque bus par son passage en direct (même ligne, horaire prévu proche)
+async function applyLive(stopId, deps) {
+  const live = await fetchLive(stopId);
+  if (!live.length) return;
+  const used = new Set();
+  for (const d of deps) {
+    const code = d.lineId.split(':').pop();          // line:IDFM:C01399 -> C01399
+    let best = null, bestGap = Infinity;
+    live.forEach((v, i) => {
+      if (used.has(i) || (code && !v.line.includes(code))) return;
+      const ref = v.aimed || v.expected;
+      const gap = Math.abs(ref - d.time);
+      if (gap < bestGap) { best = i; bestGap = gap; }
+    });
+    if (best == null || bestGap > 3 * 60000) continue;
+    used.add(best);
+    const v = live[best];
+    if (v.expected) {
+      const shift = v.expected - d.time;
+      d.time = v.expected;
+      if (d.arrival) d.arrival = new Date(d.arrival.getTime() + shift);
+      d.delay = v.aimed ? Math.round((v.expected - v.aimed) / 60000) : 0;
+      d.realtime = true;
+    }
+    d.cancelled = v.cancelled;
+  }
 }
 
 const fetchForTrip = (t) => t.toId ? fetchJourneys(t) : fetchDepartures(t.stopId);
@@ -602,7 +659,7 @@ function render() {
   const { walk, deps } = enrich(stop);
   // On garde le bus affiché tant qu'il n'est pas passé, si le retard reste rattrapable en courant
   const tol = Number(state.runTolerance || 0);
-  const catchable = deps.filter(d => d.busIn > 0 && d.leaveIn > -tol);
+  const catchable = deps.filter(d => d.busIn > 0 && d.leaveIn > -tol && !d.cancelled);
   const next = catchable[0];
 
 
@@ -652,7 +709,7 @@ function render() {
   }
 
   const list = state.showAll ? deps.slice(0, 12).map(d => {
-    const missed = d.busIn <= 0 || d.leaveIn <= -tol, late = !missed && d.leaveIn <= 0;
+    const missed = d.cancelled || d.busIn <= 0 || d.leaveIn <= -tol, late = !missed && d.leaveIn <= 0;
     const lcls = d.leaveIn < 1 ? 'leave-now' : d.leaveIn <= 5 ? 'leave-soon' : 'leave-go';
     return `<div class="dep ${missed ? 'missed' : ''}">
       ${badge(d)}
@@ -663,7 +720,7 @@ function render() {
       <div class="when">
         <div class="small muted">bus dans</div>
         <div class="mins">${fmtCountdown(Math.max(0, d.busIn))}</div>
-        <div class="small ${missed ? '' : lcls}">${missed ? (d.busIn <= 0 ? 'parti' : 'trop tard') : late ? '🏃 cours !' : 'partir ' + hhmm(d.leaveAt)}</div>
+        <div class="small ${missed ? '' : lcls}">${missed ? (d.cancelled ? '❌ supprimé' : d.busIn <= 0 ? 'parti' : 'trop tard') : late ? '🏃 cours !' : 'partir ' + hhmm(d.leaveAt)}</div>
       </div></div>`;
   }).join('') : '';
 
