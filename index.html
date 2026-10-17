@@ -80,6 +80,16 @@
   .hero .unit { font-size: 20px; font-weight: 600; }
   .hero .sub { margin-top: 10px; font-size: 16px; color: var(--muted); }
   .hero .sub b { color: var(--text); }
+  .disrupt { display: block; width: 100%; text-align: left; margin: 12px 0 0; padding: 10px 12px; border-radius: 14px;
+    background: #FAEEDA; border: 1px solid #EF9F27; color: #633806; font: inherit; }
+  .disrupt-title { font-weight: 700; font-size: 14px; line-height: 1.5; }
+  .disrupt-detail { font-size: 13px; margin-top: 6px; color: #854F0B; }
+  .disrupt-more { font-size: 12px; margin-top: 4px; font-weight: 600; color: #854F0B; }
+  .disrupt-more:empty { display: none; }
+  .disrupt-tag { color: var(--soon); font-weight: 600; }
+  .wpill { display: inline-block; margin-top: 12px; padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
+    background: color-mix(in srgb, var(--card) 60%, transparent); }
+  .wpill.wet { background: #E6F1FB; color: #0C447C; }
   .planb { margin: 14px auto 0; display: inline-block; padding: 8px 14px; border-radius: 12px; font-size: 15px;
     background: color-mix(in srgb, var(--card) 60%, transparent); }
   .lights { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
@@ -300,7 +310,10 @@ const state = {
   runTolerance: store.get('runTolerance', 3),  // retard rattrapable en courant (min)
   departures: [],
   allLines: {},                          // stopId -> {code: {color,text}}
-  allDirs: {},                           // stopId -> {"code|direction": {code, direction, color, text}}
+  allDirs: {},
+  disruptions: {},                       // tripId -> perturbations actives
+  openDisruption: null,
+  weather: {},                           // "lat,lon" -> {at, hours: [{t, temp, prob, precip, code}]}                           // stopId -> {"code|direction": {code, direction, color, text}}
   position: null,                        // {lat, lon, acc}
   loading: false,
   error: null,
@@ -436,6 +449,7 @@ const metaKey = (t) => t.toId ? t.id : t.stopId;
 // Bus directs de l'arrêt de départ vers l'arrêt d'arrivée (API itinéraires, sans correspondance)
 async function fetchJourneys(t) {
   const found = new Map();
+  const disruptions = new Map();
   let datetime = null;
   // Le soir, on cherche plus loin pour savoir quel est le dernier bus de la journée
   const evening = parisHour() >= 20 || parisHour() < 4;
@@ -445,6 +459,7 @@ async function fetchJourneys(t) {
     const data = await api(`journeys?from=${encodeURIComponent(t.stopId)}&to=${encodeURIComponent(t.toId)}`
       + `&max_nb_transfers=0&direct_path=none&count=10&min_nb_journeys=6&data_freshness=realtime`
       + (datetime ? `&datetime=${datetime}` : ''));
+    (data.disruptions || []).forEach(x => disruptions.set(x.id, x));
     let last = null;
     for (const j of data.journeys || []) {
       const pt = (j.sections || []).filter(x => x.type === 'public_transport');
@@ -461,6 +476,7 @@ async function fetchJourneys(t) {
         realtime: (sec.data_freshness || j.data_freshness) === 'realtime',
         delay: delayMin(sec.departure_date_time, sec.base_departure_date_time),
         lineId: (sec.links || []).find(l => l.type === 'line')?.id || (di.links || []).find(l => l.type === 'line')?.id || '',
+        disruptionIds: [...(sec.links || []), ...(di.links || [])].filter(l => l.type === 'disruption').map(l => l.id),
       };
       if (!d.time) continue;
       found.set(`${d.code}|${d.time.getTime()}`, d);
@@ -475,12 +491,102 @@ async function fetchJourneys(t) {
     datetime = toNavitia(new Date(last.getTime() + 60000));
   }
   const deps = [...found.values()].sort((a, b) => a.time - b.time);
+  state.disruptions[t.id] = summarizeDisruptions(disruptions, deps);
   await applyLive(t.stopId, deps);
   deps.sort((a, b) => a.time - b.time);
   const lines = { ...(state.allLines[t.id] || {}) };
   deps.forEach(d => { lines[d.code] = { color: d.color, text: d.textColor, mode: d.mode }; });
   state.allLines[t.id] = lines;
   return deps;
+}
+
+// ---------- Météo (Open-Meteo, gratuit, sans clé) ----------
+const WEATHER_TTL = 30 * 60000;
+const wKey = (lat, lon) => `${(+lat).toFixed(2)},${(+lon).toFixed(2)}`;
+async function fetchWeather(lat, lon) {
+  if (lat == null || lon == null) return;
+  const k = wKey(lat, lon), c = state.weather[k];
+  if (c && (c.pending || Date.now() - c.at < WEATHER_TTL)) return;
+  state.weather[k] = { ...(c || {}), pending: true };
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      + '&hourly=temperature_2m,precipitation_probability,precipitation,weather_code&timezone=GMT&forecast_days=2');
+    const h = (await res.json()).hourly;
+    state.weather[k] = { at: Date.now(), hours: h.time.map((t, i) => ({ t: new Date(t + ':00Z'), temp: h.temperature_2m[i],
+      prob: h.precipitation_probability?.[i] ?? 0, precip: h.precipitation?.[i] ?? 0, code: h.weather_code[i] })) };
+    render();
+  } catch { state.weather[k] = c ? { ...c, pending: false } : undefined; }
+}
+function weatherAt(lat, lon, date) {
+  const c = lat != null && state.weather[wKey(lat, lon)];
+  if (!c?.hours) return null;
+  return c.hours.find(h => date >= h.t && date - h.t < 3600000) || null;
+}
+const isRain = (w) => w && ((w.code >= 51 && w.code <= 67) || (w.code >= 80 && w.code <= 82) || w.code >= 95 || w.precip >= 0.3 || w.prob >= 60);
+const isSnow = (w) => w && ((w.code >= 71 && w.code <= 77) || w.code === 85 || w.code === 86);
+function wLook(w) {
+  if (isSnow(w)) return ['❄️', 'neige'];
+  if (w.code >= 95) return ['⛈️', 'orage'];
+  if (isRain(w)) return ['🌧️', 'pluie'];
+  if (w.code >= 45 && w.code <= 48) return ['🌫️', 'brouillard'];
+  if (w.code === 3) return ['☁️', 'couvert'];
+  if (w.code === 2) return ['⛅', 'nuageux'];
+  if (w.code === 1) return ['🌤️', 'peu nuageux'];
+  return ['☀️', 'ensoleillé'];
+}
+const wShort = (w) => w ? `${wLook(w)[0]} ${Math.round(w.temp)}°` : '';
+function originCoords(t) { const p = placeOf(t.fromPlace); return p ? [p.lat, p.lon] : [t.lat, t.lon]; }
+function destCoords(t) { const p = placeOf(t.toPlace); return p ? [p.lat, p.lon] : [t.toLat, t.toLon]; }
+function ensureWeather(t) {
+  if (!t) return;
+  fetchWeather(...originCoords(t));
+  if (t.toId) fetchWeather(...destCoords(t));
+}
+function weatherPill(t, d) {
+  const w = weatherAt(...originCoords(t), d.leaveAt > Date.now() ? d.leaveAt : new Date());
+  if (!w) return '';
+  const [icon, label] = wLook(w);
+  if (isRain(w) || isSnow(w))
+    return `<div class="wpill wet">${icon} ${label[0].toUpperCase() + label.slice(1)} prévue · ${Math.round(w.temp)}° — ☂️ prends un parapluie</div>`;
+  return `<div class="wpill">${icon} ${Math.round(w.temp)}° · ${label}</div>`;
+}
+
+// Perturbations actives touchant les lignes du trajet (fournies avec les itinéraires)
+function summarizeDisruptions(all, deps) {
+  const codes = new Map(deps.map(d => [d.code, d]));
+  const linked = new Set(deps.flatMap(d => d.disruptionIds || []));
+  const strip = (h) => String(h || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
+  const out = [];
+  for (const x of all.values()) {
+    if (x.status && x.status !== 'active') continue;
+    const lineCodes = (x.impacted_objects || []).map(o => o.pt_object?.line?.code || (o.pt_object?.embedded_type === 'line' ? o.pt_object?.name : null)).filter(Boolean);
+    const mine = lineCodes.filter(c => codes.has(c));
+    if (!mine.length && !linked.has(x.id)) continue;
+    const msgs = x.messages || [];
+    const byChannel = (type) => msgs.find(m => (m.channel?.types || []).includes(type))?.text;
+    const title = strip(byChannel('title') || x.severity?.name || 'Perturbation');
+    const detail = strip(byChannel('web') || byChannel('mobile') || msgs[0]?.text || '');
+    const end = (x.application_periods || []).map(p => parseNavitia(p.end)).filter(Boolean).sort((a, b) => b - a)[0];
+    const lines = (mine.length ? mine : [...codes.keys()].filter(c => deps.some(d => d.code === c && (d.disruptionIds || []).includes(x.id))));
+    out.push({ id: x.id, title, detail: detail === title ? '' : detail, end, effect: x.severity?.effect || '',
+      lines: [...new Set(lines)].map(c => ({ code: c, color: codes.get(c)?.color, textColor: codes.get(c)?.textColor })) });
+  }
+  return out;
+}
+
+function disruptionBanner(t) {
+  const list = state.disruptions[t.id] || [];
+  if (!list.length) return '';
+  return list.slice(0, 3).map(x => {
+    const open = state.openDisruption === x.id;
+    const until = x.end && x.end - Date.now() < 365 * 86400000
+      ? ` · jusqu’au ${x.end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : '';
+    return `<button class="disrupt" data-disrupt="${esc(x.id)}" aria-expanded="${open}">
+      <div class="disrupt-title">⚠️ ${x.lines.map(l => badge(l, 'display:inline-grid;height:20px;min-width:30px;font-size:12px')).join(' ')} ${esc(x.title)}</div>
+      ${open && x.detail ? `<div class="disrupt-detail">${esc(x.detail).replace(/\n/g, '<br>')}</div>` : ''}
+      <div class="disrupt-more">${until.slice(3) ? until.slice(3) + ' · ' : ''}${x.detail ? (open ? 'Masquer ▴' : 'Voir le détail ▾') : ''}</div>
+    </button>`;
+  }).join('');
 }
 
 // Passages en direct à un arrêt (SIRI Lite). Renvoie [] si indisponible.
@@ -546,6 +652,7 @@ function saveCache(trip, deps) {
   store.set('cache', state.cache);
 }
 function showCached(trip) {
+  ensureWeather(trip);
   const c = trip && state.cache[trip.id];
   if (!c || Date.now() - c.at > CACHE_MAX_AGE) { state.departures = []; state.lastUpdate = null; return; }
   state.departures = c.deps.map(d => ({ ...d, time: new Date(d.time), arrival: d.arrival ? new Date(d.arrival) : null }));
@@ -573,6 +680,7 @@ async function loadDepartures() {
     const deps = await fetchForTrip(trip);
     if (currentStop()?.id !== trip.id) return; // l'utilisateur a changé de trajet entre-temps
     state.departures = deps;
+    ensureWeather(trip);
     saveCache(trip, deps);
     state.error = null;
     state.lastUpdate = new Date();
@@ -703,11 +811,13 @@ function render() {
     else { big = fmtCountdown(next.leaveIn); unit = 'avant de partir'; }
     hero = `<div class="hero ${cls || 'calm'}">
       <div class="label">${tripLabel(stop)}</div>
+      ${disruptionBanner(stop)}
       ${lastSoon ? `<div class="lastbus">⚠️ Dernier bus à ${hhmm(lastToday.time)}${lastToday === next ? ' : c’est celui-ci !' : ''}</div>` : ''}
       <div class="mood"><span aria-hidden="true">${mood[0]}</span> ${mood[1]}</div>
       <div class="big ${big.length > 5 ? 'long' : ''}">${big}</div>
       <div class="unit">${unit}</div>
       ${!tomorrow && next.leaveIn > 0 ? `<div class="sub">Partir à <b>${hhmm(next.leaveAt)}</b></div>` : ''}
+      ${tomorrow ? '' : weatherPill(stop, next)}
       ${late && planB ? `<div class="planb">Sinon : bus de <b>${hhmm(planB.time)}</b>, partir à <b>${hhmm(planB.leaveAt)}</b>
         <span class="muted">(dans ${fmtCountdown(planB.leaveIn)})</span></div>` : ''}
       <div class="lights" aria-hidden="true"><i class="${cls === 'go' ? 'on' : ''}"></i><i class="${cls === 'soon' ? 'on' : ''}"></i><i class="${cls === 'now' ? 'on' : ''}"></i></div>
@@ -724,7 +834,7 @@ function render() {
       ${badge(d)}
       <div class="info">
         <div class="dir">${serviceDay(d.time) !== serviceDay(new Date()) ? '<span class="muted">Demain</span> ' : ''}${d.arrival ? `${hhmm(d.time)} ${delayTag(d)} → ${hhmm(d.arrival)} <span class="muted small" style="font-weight:400">(${Math.round((d.arrival - d.time) / 60000)} min)</span>` : `${esc(d.direction)} ${delayTag(d)}`}</div>
-        <div class="small muted">${d.realtime ? '<span class="rt"></span>temps réel · ' : 'théorique · '}${d.arrival ? `dir. ${esc(d.direction)}` : `bus à ${hhmm(d.time)}`}</div>
+        <div class="small muted">${(d.disruptionIds || []).length ? '<span class="disrupt-tag">⚠️ perturbé</span> · ' : ''}${d.realtime ? '<span class="rt"></span>temps réel · ' : 'théorique · '}${d.arrival ? `dir. ${esc(d.direction)}` : `bus à ${hhmm(d.time)}`}</div>
       </div>
       <div class="when">
         <div class="small muted">bus dans</div>
@@ -749,13 +859,13 @@ function timeline(t, d, walk, tomorrow) {
   const steps = [];
   const from = placeOf(t.fromPlace), to = placeOf(t.toPlace);
   const split = (name) => { const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.+)$/u.exec(name); return m ? [m[1], m[2]] : ['📍', name]; };
-  if (from) steps.push({ icon: split(from.name)[0], name: split(from.name)[1], info: `Départ <b>${hhmm(d.leaveAt)}</b> · ${walk.minutes} min à pied`, seg: 'walk' });
+  if (from) steps.push({ icon: split(from.name)[0], name: split(from.name)[1], info: `Départ <b>${hhmm(d.leaveAt)}</b> · ${walk.minutes} min à pied ${wShort(weatherAt(...originCoords(t), d.leaveAt))}`, seg: 'walk' });
   steps.push({ icon: '🚏', name: t.stopName, extra: badge(d, 'display:inline-grid;height:22px;min-width:32px;font-size:12px'),
     info: `${d.realtime ? '<span class="rt"></span>' : ''}Bus <b>${hhmm(d.time)}</b> ${delayTag(d, true)}`
       + (tomorrow ? ' · demain' : ` · dans ${fmtCountdown(Math.max(0, d.busIn))}`), seg: t.toId ? 'bus' : null });
-  if (t.toId) steps.push({ icon: '🏁', name: t.toName, info: d.arrival ? `Arrivée <b>${hhmm(d.arrival)}</b>` : '', seg: to ? 'walk' : null });
+  if (t.toId) steps.push({ icon: '🏁', name: t.toName, info: d.arrival ? `Arrivée <b>${hhmm(d.arrival)}</b> ${to ? '' : wShort(weatherAt(...destCoords(t), d.arrival))}` : '', seg: to ? 'walk' : null });
   else steps[steps.length - 1].info += ` · dir. ${esc(d.direction)}`;
-  if (to && d.arrival) steps.push({ icon: split(to.name)[0], name: split(to.name)[1], info: `Vers <b>${hhmm(atPlace(t, d))}</b> · ${t.toWalk ?? 0} min à pied` });
+  if (to && d.arrival) steps.push({ icon: split(to.name)[0], name: split(to.name)[1], info: `Vers <b>${hhmm(atPlace(t, d))}</b> · ${t.toWalk ?? 0} min à pied ${wShort(weatherAt(...destCoords(t), atPlace(t, d)))}` });
   return `<ol class="tl">${steps.map(st => `<li class="${st.seg ? 'seg-' + st.seg : ''}">
       <span class="tl-dot" aria-hidden="true">${st.icon}</span>
       <div><div class="tl-name">${esc(st.name)} ${st.extra || ''}</div><div class="tl-info">${st.info}</div></div>
@@ -1092,6 +1202,8 @@ $('#margin').addEventListener('change', (e) => { state.margin = Math.min(15, Mat
 $('#settingsBtn').onclick = openSheet;
 $('#closeSheet').onclick = closeSheet;
 $('#main').addEventListener('click', (e) => {
+  const dz = e.target.closest('[data-disrupt]');
+  if (dz) { state.openDisruption = state.openDisruption === dz.dataset.disrupt ? null : dz.dataset.disrupt; render(); return; }
   const sw = e.target.closest('[data-swap]'); if (!sw) return;
   const t = state.stops.find(x => x.id === sw.dataset.swap);
   const back = findReverse(t) || createReverse(t);
