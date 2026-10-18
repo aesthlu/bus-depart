@@ -1,6 +1,6 @@
 {
-  "name": "Mon Bus",
-  "short_name": "Mon Bus",
+  "name": "Prêts Partez",
+  "short_name": "Prêts Partez",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

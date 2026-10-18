@@ -6,12 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Mon Bus">
+<meta name="apple-mobile-web-app-title" content="Prêts Partez">
 <meta name="theme-color" content="#0f172a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<title>Mon Bus</title>
+<title>Prêts Partez</title>
 <style>
   :root {
     --bg: #f4f5f7; --card: #ffffff; --text: #0f172a; --muted: #64748b;
@@ -29,7 +29,7 @@
   html, body { margin: 0; background: var(--bg); color: var(--text);
     font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent; }
-  body { padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 96px); }
+  body { padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 110px); }
   header { display: flex; align-items: center; justify-content: space-between; padding: 14px 0 10px; }
   h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
   button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
@@ -63,7 +63,39 @@
     html[data-state="soon"] { --s-bg: #412402; --s-fg: #FAEEDA; --s-mid: #FAC775; --s-light: #EF9F27; }
     html[data-state="now"]  { --s-bg: #501313; --s-fg: #FCEBEB; --s-mid: #F09595; --s-light: #E24B4A; }
   }
-  html { transition: background-color .5s ease; }
+  html { transition: background-color .6s cubic-bezier(.4, 0, .2, 1); }
+  /* ---------- Animations ---------- */
+  @keyframes numTick { from { transform: translateY(-14px); opacity: .25; } to { transform: none; opacity: 1; } }
+  @keyframes numPop { 0% { transform: scale(.82); } 55% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  @keyframes swapR { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes swapL { from { transform: translateX(-28px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes dropIn { from { transform: translateY(-8px) scaleY(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes rise { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes viewIn { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes bounce { 0% { transform: scale(1); } 40% { transform: scale(1.25) translateY(-2px); } 100% { transform: scale(1); } }
+  @keyframes tileIn { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes glow { 0% { box-shadow: 0 0 0 0 currentColor; } 100% { box-shadow: 0 0 0 10px transparent; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hero .big.tick { animation: numTick .35s cubic-bezier(.2, .8, .2, 1); }
+  .hero .big.pop { animation: numPop .5s cubic-bezier(.3, 1.5, .5, 1); }
+  .swap-r { animation: swapR .38s cubic-bezier(.2, .8, .2, 1); }
+  .swap-l { animation: swapL .38s cubic-bezier(.2, .8, .2, 1); }
+  .drop-in { animation: dropIn .28s cubic-bezier(.2, .8, .2, 1); transform-origin: top center; }
+  .rise { animation: rise .35s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * 35ms); }
+  .view-in { animation: viewIn .3s cubic-bezier(.2, .8, .2, 1); }
+  .tb-ico.bounce { animation: bounce .4s cubic-bezier(.3, 1.5, .5, 1); }
+  .tiles-in .lt { animation: tileIn .35s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: calc(var(--i) * 25ms); }
+  .lights.changed i.on { animation: glow .8s ease-out 2; }
+  .lights i { transition: opacity .4s ease, background-color .4s ease, transform .4s ease; }
+  .lights i.on { transform: scale(1.15); }
+  #refreshBtn.spin { animation: spin .9s linear infinite; }
+  button, .chip, .lt { transition: transform .12s ease, opacity .2s ease, background-color .25s ease; }
+  button:active, .chip:active { transform: scale(.95); }
+  .tabbar button:active { transform: scale(.9); }
+  .dz-detail { transition: max-height .3s ease; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
   html[data-state="go"], html[data-state="soon"], html[data-state="now"] {
     background: var(--s-bg); --text: var(--s-fg); --muted: var(--s-mid); color: var(--s-fg); }
   html[data-state="go"] body, html[data-state="soon"] body, html[data-state="now"] body { background: transparent; color: var(--s-fg); }
@@ -82,15 +114,21 @@
   .hero .sub b { color: var(--text); }
   [hidden] { display: none !important; }
   /* Barre de navigation */
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; justify-content: space-around;
-    padding: 6px 8px calc(env(safe-area-inset-bottom) + 6px); background: var(--card); border-top: 1px solid var(--line); }
-  .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0;
-    font-size: 11px; font-weight: 600; color: var(--muted); }
+  /* Barre flottante : rectangle arrondi décollé des bords, toujours fixé en bas de l'écran */
+  .tabbar { position: fixed; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 10px); z-index: 5;
+    max-width: 480px; margin: 0 auto; display: flex; justify-content: space-around; padding: 6px;
+    border-radius: 22px; background: color-mix(in srgb, var(--card) 82%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+    border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .14), 0 2px 6px rgba(0, 0, 0, .06); }
+  .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0;
+    font-size: 11px; font-weight: 600; color: var(--muted); border-radius: 16px; }
   .tabbar button.active { color: var(--accent); }
   .tb-ico { font-size: 22px; line-height: 1.1; filter: grayscale(1); opacity: .7; }
   .tabbar button.active .tb-ico { filter: none; opacity: 1; }
   html[data-state="go"] .tabbar, html[data-state="soon"] .tabbar, html[data-state="now"] .tabbar {
-    background: color-mix(in srgb, var(--s-bg) 85%, var(--card)); border-top-color: color-mix(in srgb, var(--s-mid) 25%, transparent); }
+    background: color-mix(in srgb, color-mix(in srgb, var(--s-bg) 70%, var(--card)) 82%, transparent);
+    border-color: color-mix(in srgb, var(--s-mid) 25%, transparent); }
   /* Infos trafic */
   .tr-top { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 8px; }
   .tr-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
@@ -233,7 +271,7 @@
 <body>
 
 <header>
-  <h1>Mon Bus</h1>
+  <h1>Prêts Partez</h1>
   <div class="row" style="flex:none; gap:8px">
     <button class="icon-btn" id="refreshBtn" aria-label="Actualiser">↻</button>
   </div>
@@ -685,7 +723,7 @@ function disruptionBanner(t) {
   }).join('') : '';
   return `<div class="dz ${severe ? 'severe' : ''} ${open ? 'open' : ''}">
     <button class="dz-pill" data-dz-toggle aria-expanded="${!!open}">⚠️ ${label} ${open ? '▴' : '▾'}</button>
-    ${items ? `<div class="dz-list">${items}</div>` : ''}
+    ${items ? `<div class="dz-list ${once('dz', 'drop-in')}">${items}</div>` : ''}
   </div>`;
 }
 
@@ -758,7 +796,16 @@ function showCached(trip) {
   state.departures = c.deps.map(d => ({ ...d, time: new Date(d.time), arrival: d.arrival ? new Date(d.arrival) : null }));
   state.lastUpdate = new Date(c.at);
 }
+// ---------- Animations ponctuelles ----------
+// L'écran est redessiné chaque seconde : une animation n'est jouée qu'au rendu qui suit l'événement déclencheur.
+const anim = new Set();
+const once = (key, cls) => anim.has(key) ? cls : '';
+let lastMainHTML = '';
+let lastBig = null, lastMood = null, lastTripId = null;
+
 function selectTrip(id) {
+  const order = (x) => state.stops.findIndex(t => t.id === x);
+  anim.add(order(id) >= order(state.current) ? 'swap-r' : 'swap-l');
   state.current = id; state.error = null; save();
   showCached(currentStop()); render(); loadDepartures();
 }
@@ -921,6 +968,7 @@ async function loadTraffic() {
     for (const b of (state.trafficBus || []).slice(0, 15)) {
       try { addReports(await api(`lines/${encodeURIComponent(b.id)}/line_reports?count=50&depth=1`), byLine); } catch {}
     }
+    if (!state.traffic) anim.add('tiles');
     state.traffic = { at: new Date(), byLine };
   } catch (e) {
     state.trafficError = e.message === 'NO_KEY' ? 'Ajoute ta clé API dans les réglages.' : e.message;
@@ -971,7 +1019,7 @@ function renderTraffic() {
   const sections = TRAFFIC_GROUPS.map(g => {
     const lines = cat.filter(l => l.group === g.key && shown(l));
     if (!lines.length) return '';
-    return `<h3 class="tr-h">${g.icon} ${g.label}</h3><div class="card tr-grid">${lines.map(l => lineTile(l, by[l.id])).join('')}</div>`;
+    return `<h3 class="tr-h">${g.icon} ${g.label}</h3><div class="card tr-grid ${once('tiles', 'tiles-in')}">${lines.map((l, i) => lineTile(l, by[l.id]).replace('<button class="lt', `<button style="--i:${Math.min(i, 15)}" class="lt`)).join('')}</div>`;
   }).join('');
   const bus = state.trafficBus || [];
   const busSection = `<h3 class="tr-h">🚌 Bus</h3>
@@ -992,8 +1040,10 @@ function renderTraffic() {
     ${state.trafficError ? `<div class="error" style="margin-bottom:8px">${esc(state.trafficError)}</div>` : ''}`;
   const focused = document.activeElement?.id === 'busSearch' ? document.activeElement.value : null;
   const results = $('#busResults')?.innerHTML || '';
-  el.innerHTML = head + (sel && !state.trafficEdit ? lineDetail(sel, by[sel.id]) : '') + sections + busSection
+  el.innerHTML = head + (sel && !state.trafficEdit ? lineDetail(sel, by[sel.id]).replace('class="card ld"', `class="card ld ${once('detail', 'drop-in')}"`) : '') + sections + busSection
     + (!cat.length && state.trafficLoading ? '<div class="card muted" style="text-align:center">Chargement des lignes…</div>' : '');
+  anim.clear();
+  $('#refreshBtn').classList.toggle('spin', !!state.trafficLoading);
   if (focused != null) { const i = $('#busSearch'); i.value = focused; i.focus(); $('#busResults').innerHTML = results; }
 }
 
@@ -1002,6 +1052,11 @@ function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('#tabbar [data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('#main').hidden = tab !== 'trips'; $('#stopChips').hidden = tab !== 'trips'; $('#traffic').hidden = tab !== 'traffic';
+  // Fondu d'entrée de la vue et petit rebond de l'icône active
+  const view = tab === 'traffic' ? $('#traffic') : $('#main');
+  view.classList.remove('view-in'); void view.offsetWidth; view.classList.add('view-in');
+  const ico = document.querySelector(`#tabbar [data-tab="${tab}"] .tb-ico`);
+  ico?.classList.remove('bounce'); void ico?.offsetWidth; ico?.classList.add('bounce');
   if (tab === 'traffic') {
     document.documentElement.dataset.state = '';
     renderTraffic();
@@ -1027,6 +1082,7 @@ function render() {
 
   if (!state.apiKey || !stop) {
     document.documentElement.dataset.state = '';
+    lastMainHTML = '';
     main.innerHTML = `<div class="card empty">
       <div class="big-emoji">🚌</div>
       <h2 style="margin:8px 0 6px">Bienvenue</h2>
@@ -1073,28 +1129,32 @@ function render() {
     else if (next.leaveIn < 5) { big = fmtCountdown(next.leaveIn); unit = 'avant de partir'; }
     else if (next.leaveIn < 60) { const m = Math.floor(next.leaveIn); big = String(m); unit = m > 1 ? 'minutes' : 'minute'; }
     else { big = fmtCountdown(next.leaveIn); unit = 'avant de partir'; }
-    hero = `<div class="hero ${cls || 'calm'}">
+    // Le chiffre « tombe » quand il change ; il « rebondit » quand la couleur change
+    const moodChanged = lastMood !== null && lastMood !== cls && lastTripId === stop.id;
+    const tickCls = moodChanged ? 'pop' : (lastBig !== null && lastBig !== big && lastTripId === stop.id ? 'tick' : '');
+    lastBig = big; lastMood = cls; lastTripId = stop.id;
+    hero = `<div class="hero ${cls || 'calm'} ${once('swap-r', 'swap-r')}${once('swap-l', 'swap-l')}">
       <div class="label">${tripLabel(stop)}</div>
       ${disruptionBanner(stop)}
       ${lastSoon ? `<div class="lastbus">⚠️ Dernier bus à ${hhmm(lastToday.time)}${lastToday === next ? ' : c’est celui-ci !' : ''}</div>` : ''}
       <div class="mood"><span aria-hidden="true">${mood[0]}</span> ${mood[1]}</div>
-      <div class="big ${big.length > 5 ? 'long' : ''}">${big}</div>
+      <div class="big ${big.length > 5 ? 'long' : ''} ${tickCls}">${big}</div>
       <div class="unit">${unit}</div>
       ${!tomorrow && next.leaveIn > 0 ? `<div class="sub">Partir à <b>${hhmm(next.leaveAt)}</b></div>` : ''}
       ${tomorrow ? '' : weatherPill(stop, next)}
       ${late && planB ? `<div class="planb">Sinon : bus de <b>${hhmm(planB.time)}</b>, partir à <b>${hhmm(planB.leaveAt)}</b>
         <span class="muted">(dans ${fmtCountdown(planB.leaveIn)})</span></div>` : ''}
-      <div class="lights" aria-hidden="true"><i class="${cls === 'go' ? 'on' : ''}"></i><i class="${cls === 'soon' ? 'on' : ''}"></i><i class="${cls === 'now' ? 'on' : ''}"></i></div>
+      <div class="lights ${moodChanged ? 'changed' : ''}" aria-hidden="true"><i class="${cls === 'go' ? 'on' : ''}"></i><i class="${cls === 'soon' ? 'on' : ''}"></i><i class="${cls === 'now' ? 'on' : ''}"></i></div>
     </div>
-    <div class="card">${timeline(stop, next, walk, tomorrow)}
+    <div class="card ${once('swap-r', 'swap-r')}${once('swap-l', 'swap-l')}">${timeline(stop, next, walk, tomorrow)}
       ${then.length ? `<div class="then">Bus suivants : ${then.map(d => `<b>${hhmm(d.time)}</b> <span class="muted">(pars ${hhmm(d.leaveAt)})</span>`).join(' · ')}</div>` : ''}
     </div>`;
   }
 
-  const list = state.showAll ? deps.slice(0, 12).map(d => {
+  const list = state.showAll ? deps.slice(0, 12).map((d, i) => {
     const missed = d.cancelled || d.busIn <= 0 || d.leaveIn <= -tol, late = !missed && d.leaveIn <= 0;
     const lcls = d.leaveIn < 1 ? 'leave-now' : d.leaveIn <= 5 ? 'leave-soon' : 'leave-go';
-    return `<div class="dep ${missed ? 'missed' : ''}">
+    return `<div class="dep ${missed ? 'missed' : ''} ${once('list', 'rise')}" style="--i:${i}">
       ${badge(d)}
       <div class="info">
         <div class="dir">${serviceDay(d.time) !== serviceDay(new Date()) ? '<span class="muted">Demain</span> ' : ''}${d.arrival ? `${hhmm(d.time)} ${delayTag(d)} → ${hhmm(d.arrival)} <span class="muted small" style="font-weight:400">(${Math.round((d.arrival - d.time) / 60000)} min)</span>` : `${esc(d.direction)} ${delayTag(d)}`}</div>
@@ -1114,8 +1174,11 @@ function render() {
     ${state.error && state.departures.length ? `<div class="error">${esc(state.error)}</div>` : ''}</div>`;
 
   document.documentElement.dataset.state = screenState;
-  main.innerHTML = hero + toggle + (list ? `<div class="card">${list}</div>` : '') + footer;
-  $('#toggleAll')?.addEventListener('click', () => { state.showAll = !state.showAll; render(); });
+  const html = hero + toggle + (list ? `<div class="card ${once('list', 'drop-in')}">${list}</div>` : '') + footer;
+  if (html !== lastMainHTML) { main.innerHTML = html; lastMainHTML = html; }   // pas de redessin inutile
+  anim.clear();
+  $('#refreshBtn').classList.toggle('spin', !!state.loading);
+  $('#toggleAll')?.addEventListener('click', () => { state.showAll = !state.showAll; if (state.showAll) anim.add('list'); render(); });
 }
 
 // Frise du trajet : lieu de départ → arrêt de montée → arrêt de descente → lieu d'arrivée
@@ -1465,7 +1528,7 @@ $('#runTolerance').addEventListener('change', (e) => { state.runTolerance = Math
 $('#margin').addEventListener('change', (e) => { state.margin = Math.min(15, Math.max(0, Math.round(+e.target.value || 0))); save(); });
 $('#closeSheet').onclick = closeSheet;
 $('#main').addEventListener('click', (e) => {
-  if (e.target.closest('[data-dz-toggle]')) { state.disruptOpen = !state.disruptOpen; render(); return; }
+  if (e.target.closest('[data-dz-toggle]')) { state.disruptOpen = !state.disruptOpen; if (state.disruptOpen) anim.add('dz'); render(); return; }
   const dz = e.target.closest('[data-disrupt]');
   if (dz) { state.openDisruption = state.openDisruption === dz.dataset.disrupt ? null : dz.dataset.disrupt; render(); return; }
   const sw = e.target.closest('[data-swap]'); if (!sw) return;
@@ -1492,7 +1555,7 @@ $('#traffic').addEventListener('click', (e) => {
     state.trafficHidden = state.trafficHidden.includes(id) ? state.trafficHidden.filter(x => x !== id) : [...state.trafficHidden, id];
     save(); renderTraffic();
   } else {
-    state.trafficSel = state.trafficSel === id ? null : id; renderTraffic();
+    state.trafficSel = state.trafficSel === id ? null : id; if (state.trafficSel) anim.add('detail'); renderTraffic();
     if (state.trafficSel) $('#lineDetail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });

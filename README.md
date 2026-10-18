@@ -1,4 +1,4 @@
-# Mon Bus
+# Prêts Partez
 
 Web app iPhone qui affiche, en un coup d'œil, quand partir pour attraper son bus en Île-de-France (données temps réel Île-de-France Mobilités).
 
