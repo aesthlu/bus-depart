@@ -29,7 +29,7 @@
   html, body { margin: 0; background: var(--bg); color: var(--text);
     font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent; }
-  body { padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 24px); }
+  body { padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 96px); }
   header { display: flex; align-items: center; justify-content: space-between; padding: 14px 0 10px; }
   h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
   button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
@@ -80,6 +80,46 @@
   .hero .unit { font-size: 20px; font-weight: 600; }
   .hero .sub { margin-top: 10px; font-size: 16px; color: var(--muted); }
   .hero .sub b { color: var(--text); }
+  [hidden] { display: none !important; }
+  /* Barre de navigation */
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; justify-content: space-around;
+    padding: 6px 8px calc(env(safe-area-inset-bottom) + 6px); background: var(--card); border-top: 1px solid var(--line); }
+  .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0;
+    font-size: 11px; font-weight: 600; color: var(--muted); }
+  .tabbar button.active { color: var(--accent); }
+  .tb-ico { font-size: 22px; line-height: 1.1; filter: grayscale(1); opacity: .7; }
+  .tabbar button.active .tb-ico { filter: none; opacity: 1; }
+  html[data-state="go"] .tabbar, html[data-state="soon"] .tabbar, html[data-state="now"] .tabbar {
+    background: color-mix(in srgb, var(--s-bg) 85%, var(--card)); border-top-color: color-mix(in srgb, var(--s-mid) 25%, transparent); }
+  /* Infos trafic */
+  .tr-top { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 8px; }
+  .tr-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .tr-h { font-size: 17px; margin: 18px 4px 8px; }
+  .tr-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px 6px; justify-items: center; }
+  .lt { position: relative; display: inline-grid; place-items: center; min-width: 52px; min-height: 44px; }
+  .lt.off { opacity: .3; }
+  .lt.sel .lt-badge, .lt.sel .lt-tram { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .lt-badge { display: inline-grid; place-items: center; font-weight: 800; font-size: 20px; min-width: 40px; height: 40px; padding: 0 6px; }
+  .lt-badge small { font-size: 10px; font-weight: 700; margin-left: 1px; }
+  .lt-square { border-radius: 9px; }
+  .lt-round { border-radius: 50%; width: 40px; padding: 0; font-size: 18px; }
+  .lt-bus { border-radius: 7px; font-size: 15px; height: 30px; min-width: 46px; }
+  .lt-tram { font-weight: 800; font-size: 18px; padding: 5px 4px; border-top: 4px solid var(--lc); border-bottom: 4px solid var(--lc); min-width: 40px; text-align: center; }
+  .st { position: absolute; right: 0; bottom: -2px; width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center;
+    font-size: 12px; font-weight: 900; border: 2px solid var(--card); }
+  .st.inline { position: static; display: inline-grid; vertical-align: middle; border: 0; width: 18px; height: 18px; }
+  .st-stop { background: #E5322D; color: #fff; } .st-warn { background: #F5C400; color: #3D2B00; }
+  .st-works { background: #F07B3F; color: #fff; font-size: 10px; } .st-info { background: #2F7FD9; color: #fff; font-style: italic; font-family: Georgia, serif; }
+  .lt-check { position: absolute; right: 2px; top: -4px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff;
+    font-size: 11px; display: grid; place-items: center; }
+  .lt.off .lt-check { background: var(--line); }
+  .lt-remove { position: absolute; right: -2px; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--danger); color: #fff; font-size: 10px; }
+  .ld-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .ld-close { margin-left: auto; width: 30px; height: 30px; border-radius: 15px; background: var(--bg); }
+  .ld-item { padding: 10px 0; border-top: 1px solid var(--line); }
+  .ld-title { font-weight: 600; }
+  .ld-when { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .ld-detail { font-size: 14px; margin-top: 6px; }
   .dz { margin-top: 10px; }
   .dz-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
     background: color-mix(in srgb, var(--card) 55%, transparent); color: var(--soon); }
@@ -196,12 +236,18 @@
   <h1>Mon Bus</h1>
   <div class="row" style="flex:none; gap:8px">
     <button class="icon-btn" id="refreshBtn" aria-label="Actualiser">↻</button>
-    <button class="icon-btn" id="settingsBtn" aria-label="Réglages">⚙︎</button>
   </div>
 </header>
 
 <div class="chips" id="stopChips"></div>
 <main id="main"></main>
+<main id="traffic" hidden></main>
+
+<nav class="tabbar" id="tabbar" aria-label="Navigation">
+  <button data-tab="trips"><span class="tb-ico" aria-hidden="true">🚌</span>Mes trajets</button>
+  <button data-tab="traffic"><span class="tb-ico" aria-hidden="true">⚠️</span>Infos trafic</button>
+  <button data-tab="settings"><span class="tb-ico" aria-hidden="true">⚙︎</span>Réglages</button>
+</nav>
 
 <!-- Réglages -->
 <section class="sheet" id="sheet" aria-label="Réglages">
@@ -321,6 +367,14 @@ const state = {
   disruptions: {},                       // tripId -> perturbations actives
   openDisruption: null,
   disruptOpen: false,
+  tab: 'trips',                          // 'trips' | 'traffic'
+  trafficHidden: store.get('trafficHidden', []),   // lignes RER/Train/Métro/Tram masquées
+  trafficBus: store.get('trafficBus', null),       // lignes de bus suivies [{id, code, color, textColor}]
+  trafficEdit: false,
+  trafficSel: null,
+  traffic: null,                         // {at, byLine: {lineId: [perturbations]}}
+  trafficLoading: false,
+  trafficError: null,
   weather: {},                           // "lat,lon" -> {at, hours: [{t, temp, prob, precip, code}]}                           // stopId -> {"code|direction": {code, direction, color, text}}
   position: null,                        // {lat, lon, acc}
   loading: false,
@@ -330,6 +384,7 @@ const state = {
 const save = () => {
   store.set('apiKey', state.apiKey); store.set('stops', state.stops);
   store.set('current', state.current); store.set('speed', state.speed); store.set('margin', state.margin); store.set('runTolerance', state.runTolerance);
+  store.set('trafficHidden', state.trafficHidden); store.set('trafficBus', state.trafficBus);
   store.set('defaultTrip', state.defaultTrip);
   store.set('eveningTrip', state.eveningTrip); store.set('switchHour', state.switchHour);
   store.set('places', state.places);
@@ -560,30 +615,43 @@ function weatherPill(t, d) {
 }
 
 // Perturbations actives touchant les lignes du trajet (fournies avec les itinéraires)
+// Effets qui empêchent vraiment le trajet : la pastille devient plus visible
+const SEVERE = ['NO_SERVICE', 'REDUCED_SERVICE', 'SIGNIFICANT_DELAYS', 'DETOUR'];
+
+// Perturbation Navitia -> {id, title, detail, begin, end, effect, status, kind}
+const stripHtml = (h) => String(h || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '')
+  .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, '’').replace(/\n{2,}/g, '\n').trim();
+function normDisruption(x) {
+  const msgs = x.messages || [];
+  const byChannel = (type) => msgs.find(m => (m.channel?.types || []).includes(type))?.text;
+  const title = stripHtml(byChannel('title') || x.severity?.name || 'Perturbation');
+  const detail = stripHtml(byChannel('web') || byChannel('mobile') || msgs[0]?.text || '');
+  const periods = (x.application_periods || []).map(p => [parseNavitia(p.begin), parseNavitia(p.end)]);
+  const begin = periods.map(p => p[0]).filter(Boolean).sort((a, b) => a - b)[0];
+  const end = periods.map(p => p[1]).filter(Boolean).sort((a, b) => b - a)[0];
+  const effect = x.severity?.effect || '';
+  const works = /travaux|chantier/i.test(`${x.cause || ''} ${title}`);
+  const kind = x.status === 'future' ? 'works' : effect === 'NO_SERVICE' ? 'stop'
+    : SEVERE.includes(effect) ? 'warn' : works ? 'works' : 'info';
+  return { id: x.id, title, detail: detail === title ? '' : detail, begin, end, effect, status: x.status || 'active', kind };
+}
+
 function summarizeDisruptions(all, deps) {
   const codes = new Map(deps.map(d => [d.code, d]));
   const linked = new Set(deps.flatMap(d => d.disruptionIds || []));
-  const strip = (h) => String(h || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
   const out = [];
   for (const x of all.values()) {
     if (x.status && x.status !== 'active') continue;
     const lineCodes = (x.impacted_objects || []).map(o => o.pt_object?.line?.code || (o.pt_object?.embedded_type === 'line' ? o.pt_object?.name : null)).filter(Boolean);
     const mine = lineCodes.filter(c => codes.has(c));
     if (!mine.length && !linked.has(x.id)) continue;
-    const msgs = x.messages || [];
-    const byChannel = (type) => msgs.find(m => (m.channel?.types || []).includes(type))?.text;
-    const title = strip(byChannel('title') || x.severity?.name || 'Perturbation');
-    const detail = strip(byChannel('web') || byChannel('mobile') || msgs[0]?.text || '');
-    const end = (x.application_periods || []).map(p => parseNavitia(p.end)).filter(Boolean).sort((a, b) => b - a)[0];
+    const { title, detail, end, effect } = normDisruption(x);
     const lines = (mine.length ? mine : [...codes.keys()].filter(c => deps.some(d => d.code === c && (d.disruptionIds || []).includes(x.id))));
-    out.push({ id: x.id, title, detail: detail === title ? '' : detail, end, effect: x.severity?.effect || '',
+    out.push({ id: x.id, title, detail, end, effect,
       lines: [...new Set(lines)].map(c => ({ code: c, color: codes.get(c)?.color, textColor: codes.get(c)?.textColor })) });
   }
   return out;
 }
-
-// Effets qui empêchent vraiment le trajet : la pastille devient plus visible
-const SEVERE = ['NO_SERVICE', 'REDUCED_SERVICE', 'SIGNIFICANT_DELAYS', 'DETOUR'];
 
 // Pastille discrète « ⚠️ 2 infos trafic ▾ » qui déroule la liste des perturbations
 function disruptionBanner(t) {
@@ -766,6 +834,169 @@ function fmtCountdown(min) {
 }
 
 // ---------- Rendu ----------
+// ================= Infos trafic =================
+const TRAFFIC_GROUPS = [
+  { key: 'rer', label: 'Train · RER', icon: '🚆', modes: ['physical_mode:RapidTransit', 'physical_mode:LocalTrain'] },
+  { key: 'metro', label: 'Métro', icon: 'Ⓜ️', modes: ['physical_mode:Metro'] },
+  { key: 'tram', label: 'Tramway', icon: '🚊', modes: ['physical_mode:Tramway'] },
+];
+const KIND_RANK = { stop: 4, warn: 3, works: 2, info: 1 };
+const KIND_SYM = { stop: '✕', warn: '!', works: '🚧', info: 'i' };
+const KIND_LABEL = { stop: 'Interrompu', warn: 'Perturbé', works: 'Travaux', info: 'Information' };
+const natural = (a, b) => String(a).localeCompare(String(b), 'fr', { numeric: true });
+
+const lineObj = (l, group) => ({ id: l.id, code: l.code || l.name || '?', group,
+  color: l.color ? '#' + l.color : '#64748b', textColor: l.text_color ? '#' + l.text_color : '#ffffff' });
+
+// Catalogue des lignes (mis en cache 7 jours : il change rarement)
+async function lineCatalog() {
+  const c = store.get('lineCatalog', null);
+  if (c && Date.now() - c.at < 7 * 86400000 && c.lines?.length) return c.lines;
+  const lines = [];
+  for (const g of TRAFFIC_GROUPS) {
+    for (const mode of g.modes) {
+      const data = await api(`physical_modes/${encodeURIComponent(mode)}/lines?count=200&depth=0`);
+      (data.lines || []).forEach(l => lines.push({ ...lineObj(l, g.key), rank: g.modes.indexOf(mode) }));
+    }
+  }
+  const uniq = [...new Map(lines.map(l => [l.id, l])).values()]
+    .sort((a, b) => a.group === b.group ? (a.rank - b.rank) || natural(a.code, b.code) : 0);
+  store.set('lineCatalog', { at: Date.now(), lines: uniq });
+  return uniq;
+}
+
+// Tous les identifiants de perturbation cités dans un objet (liens imbriqués)
+function disruptionIdsIn(obj, out = new Set()) {
+  if (Array.isArray(obj)) obj.forEach(o => disruptionIdsIn(o, out));
+  else if (obj && typeof obj === 'object') {
+    if (obj.type === 'disruption' && obj.id) out.add(obj.id);
+    Object.values(obj).forEach(v => typeof v === 'object' && disruptionIdsIn(v, out));
+  }
+  return out;
+}
+function addReports(data, byLine) {
+  const all = new Map((data.disruptions || []).map(x => [x.id, x]));
+  for (const r of data.line_reports || []) {
+    const id = r.line?.id; if (!id) continue;
+    const list = byLine[id] || (byLine[id] = []);
+    disruptionIdsIn(r).forEach(did => {
+      const x = all.get(did);
+      if (x && x.status !== 'past' && !list.some(d => d.id === did)) list.push(normDisruption(x));
+    });
+  }
+}
+
+// Bus suivis par défaut : les lignes de tes trajets
+function defaultBusLines() {
+  const seen = new Map();
+  const add = (d) => { if (d.lineId && !seen.has(d.code)) seen.set(d.code, { id: d.lineId, code: d.code, color: d.color, textColor: d.textColor, group: 'bus' }); };
+  Object.values(state.cache).forEach(c => (c.deps || []).forEach(add));
+  state.departures.forEach(add);
+  return [...seen.values()].sort((a, b) => natural(a.code, b.code));
+}
+
+async function loadTraffic() {
+  if (!state.apiKey || state.trafficLoading) return;
+  state.trafficLoading = true; state.trafficError = null; renderTraffic();
+  try {
+    if (!state.trafficBus) { const def = defaultBusLines(); if (def.length) { state.trafficBus = def; save(); } }
+    state.catalog = await lineCatalog();
+    const byLine = {};
+    for (const g of TRAFFIC_GROUPS) for (const mode of g.modes) {
+      addReports(await api(`physical_modes/${encodeURIComponent(mode)}/line_reports?count=200&depth=1`), byLine);
+    }
+    for (const b of (state.trafficBus || []).slice(0, 15)) {
+      try { addReports(await api(`lines/${encodeURIComponent(b.id)}/line_reports?count=50&depth=1`), byLine); } catch {}
+    }
+    state.traffic = { at: new Date(), byLine };
+  } catch (e) {
+    state.trafficError = e.message === 'NO_KEY' ? 'Ajoute ta clé API dans les réglages.' : e.message;
+  } finally { state.trafficLoading = false; renderTraffic(); }
+}
+
+const worstKind = (list) => (list || []).reduce((k, d) => KIND_RANK[d.kind] > (KIND_RANK[k] || 0) ? d.kind : k, null);
+
+function lineTile(l, list) {
+  const kind = worstKind(list);
+  const hidden = state.trafficHidden.includes(l.id);
+  const shape = l.group === 'metro' ? 'round' : l.group === 'tram' ? 'tram' : l.group === 'bus' ? 'bus' : 'square';
+  const label = l.group === 'metro' ? esc(l.code).replace(/^(\d+)B$/i, '$1<small>bis</small>') : esc(l.code);
+  const inner = shape === 'tram'
+    ? `<span class="lt-tram" style="--lc:${esc(l.color)}">${label}</span>`
+    : `<span class="lt-badge lt-${shape}" style="background:${esc(l.color)};color:${esc(l.textColor)}">${label}</span>`;
+  const editMark = state.trafficEdit ? `<span class="lt-check">${hidden ? '' : '✓'}</span>` : '';
+  return `<button class="lt ${state.trafficEdit && hidden ? 'off' : ''} ${state.trafficSel === l.id ? 'sel' : ''}"
+      data-line-tile="${esc(l.id)}" aria-label="Ligne ${esc(l.code)}${kind ? ' : ' + KIND_LABEL[kind] : ''}">
+    ${inner}${kind && !state.trafficEdit ? `<span class="st st-${kind}">${KIND_SYM[kind]}</span>` : ''}${editMark}
+  </button>`;
+}
+
+function lineDetail(l, list) {
+  const fmt = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const items = [...(list || [])].sort((a, b) => KIND_RANK[b.kind] - KIND_RANK[a.kind]).map(d => `
+    <div class="ld-item">
+      <div class="ld-title"><span class="st st-${d.kind} inline">${KIND_SYM[d.kind]}</span> ${esc(d.title)}</div>
+      ${d.begin || d.end ? `<div class="ld-when">${d.status === 'future' && d.begin ? 'À partir du ' + fmt(d.begin) : ''}${d.end && d.end - Date.now() < 365 * 86400000 ? (d.status === 'future' ? ' · ' : '') + 'jusqu’au ' + fmt(d.end) : ''}</div>` : ''}
+      ${d.detail ? `<div class="ld-detail">${esc(d.detail).replace(/\n/g, '<br>')}</div>` : ''}
+    </div>`).join('');
+  const shape = l.group === 'metro' ? 'round' : l.group === 'bus' ? 'bus' : 'square';
+  return `<div class="card ld" id="lineDetail">
+    <div class="ld-head"><span class="lt-badge lt-${shape}" style="background:${esc(l.color)};color:${esc(l.textColor)}">${esc(l.code)}</span>
+      <b>Ligne ${esc(l.code)}</b>
+      <button class="ld-close" data-close-detail aria-label="Fermer">✕</button></div>
+    ${items || '<div class="muted" style="padding:6px 0">✅ Trafic normal sur cette ligne.</div>'}
+  </div>`;
+}
+
+function renderTraffic() {
+  const el = $('#traffic');
+  if (state.tab !== 'traffic') return;
+  if (!state.apiKey) { el.innerHTML = '<div class="card empty"><div class="big-emoji">⚠️</div><p class="muted">Ajoute ta clé API IDFM dans les réglages.</p></div>'; return; }
+  const by = state.traffic?.byLine || {};
+  const cat = state.catalog || [];
+  const shown = (l) => state.trafficEdit || !state.trafficHidden.includes(l.id);
+  const sections = TRAFFIC_GROUPS.map(g => {
+    const lines = cat.filter(l => l.group === g.key && shown(l));
+    if (!lines.length) return '';
+    return `<h3 class="tr-h">${g.icon} ${g.label}</h3><div class="card tr-grid">${lines.map(l => lineTile(l, by[l.id])).join('')}</div>`;
+  }).join('');
+  const bus = state.trafficBus || [];
+  const busSection = `<h3 class="tr-h">🚌 Bus</h3>
+    <div class="card">
+      ${bus.length ? `<div class="tr-grid">${bus.map(l => state.trafficEdit
+        ? `<span class="lt"><span class="lt-badge lt-bus" style="background:${esc(l.color)};color:${esc(l.textColor)}">${esc(l.code)}</span><button class="lt-remove" data-bus-remove="${esc(l.id)}" aria-label="Retirer">✕</button></span>`
+        : lineTile({ ...l, group: 'bus' }, by[l.id])).join('')}</div>` : '<div class="muted small">Aucune ligne de bus suivie.</div>'}
+      ${state.trafficEdit ? `<input type="search" id="busSearch" placeholder="Ajouter une ligne de bus (ex. 4118)" style="margin-top:10px">
+        <div id="busResults"></div>` : ''}
+    </div>`;
+  const sel = state.trafficSel && [...cat, ...bus.map(b => ({ ...b, group: 'bus' }))].find(l => l.id === state.trafficSel);
+  const legend = `<div class="tr-legend">${Object.keys(KIND_SYM).map(k => `<span><span class="st st-${k} inline">${KIND_SYM[k]}</span> ${KIND_LABEL[k]}</span>`).join('')}</div>`;
+  const head = `<div class="tr-top">
+      <div class="small muted">${state.trafficLoading ? 'Chargement…' : state.traffic ? 'Mis à jour à ' + hhmm(state.traffic.at) : ''}</div>
+      <button class="chip ${state.trafficEdit ? 'active' : ''}" data-traffic-edit>${state.trafficEdit ? 'Terminé' : '✎ Choisir les lignes'}</button>
+    </div>
+    ${state.trafficEdit ? '<div class="small muted" style="margin-bottom:8px">Touche une ligne pour l’afficher ou la masquer.</div>' : legend}
+    ${state.trafficError ? `<div class="error" style="margin-bottom:8px">${esc(state.trafficError)}</div>` : ''}`;
+  const focused = document.activeElement?.id === 'busSearch' ? document.activeElement.value : null;
+  const results = $('#busResults')?.innerHTML || '';
+  el.innerHTML = head + (sel && !state.trafficEdit ? lineDetail(sel, by[sel.id]) : '') + sections + busSection
+    + (!cat.length && state.trafficLoading ? '<div class="card muted" style="text-align:center">Chargement des lignes…</div>' : '');
+  if (focused != null) { const i = $('#busSearch'); i.value = focused; i.focus(); $('#busResults').innerHTML = results; }
+}
+
+function setTab(tab) {
+  if (tab === 'settings') { openSheet(); return; }
+  state.tab = tab;
+  document.querySelectorAll('#tabbar [data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $('#main').hidden = tab !== 'trips'; $('#stopChips').hidden = tab !== 'trips'; $('#traffic').hidden = tab !== 'traffic';
+  if (tab === 'traffic') {
+    document.documentElement.dataset.state = '';
+    renderTraffic();
+    if (!state.traffic || Date.now() - state.traffic.at > 2 * 60000) loadTraffic();
+  } else render();
+  window.scrollTo(0, 0);
+}
+
 function renderChips() {
   const el = $('#stopChips');
   if (state.stops.length < 2) { el.innerHTML = ''; el.style.display = 'none'; return; }
@@ -776,6 +1007,7 @@ function renderChips() {
 }
 
 function render() {
+  if (state.tab !== 'trips') return;
   renderChips();
   const main = $('#main');
   const stop = currentStop();
@@ -1218,7 +1450,6 @@ $('#apiKey').addEventListener('change', (e) => { state.apiKey = e.target.value.t
 $('#speed').addEventListener('change', (e) => { state.speed = Math.min(8, Math.max(2, +e.target.value || 4.5)); save(); });
 $('#runTolerance').addEventListener('change', (e) => { state.runTolerance = Math.min(10, Math.max(0, Math.round(+e.target.value || 0))); save(); });
 $('#margin').addEventListener('change', (e) => { state.margin = Math.min(15, Math.max(0, Math.round(+e.target.value || 0))); save(); });
-$('#settingsBtn').onclick = openSheet;
 $('#closeSheet').onclick = closeSheet;
 $('#main').addEventListener('click', (e) => {
   if (e.target.closest('[data-dz-toggle]')) { state.disruptOpen = !state.disruptOpen; render(); return; }
@@ -1229,7 +1460,48 @@ $('#main').addEventListener('click', (e) => {
   const back = findReverse(t) || createReverse(t);
   selectTrip(back.id);
 });
-$('#refreshBtn').onclick = () => loadDepartures();
+$('#refreshBtn').onclick = () => state.tab === 'traffic' ? loadTraffic() : loadDepartures();
+$('#tabbar').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); });
+$('#traffic').addEventListener('click', (e) => {
+  if (e.target.closest('[data-traffic-edit]')) { state.trafficEdit = !state.trafficEdit; state.trafficSel = null; renderTraffic(); if (!state.trafficEdit) loadTraffic(); return; }
+  if (e.target.closest('[data-close-detail]')) { state.trafficSel = null; renderTraffic(); return; }
+  const rm = e.target.closest('[data-bus-remove]');
+  if (rm) { state.trafficBus = (state.trafficBus || []).filter(b => b.id !== rm.dataset.busRemove); save(); renderTraffic(); return; }
+  const add = e.target.closest('[data-bus-add]');
+  if (add) {
+    const l = JSON.parse(add.dataset.busAdd);
+    state.trafficBus = [...(state.trafficBus || []).filter(b => b.id !== l.id), l].sort((a, b) => natural(a.code, b.code));
+    save(); $('#busSearch').value = ''; $('#busResults').innerHTML = ''; renderTraffic(); return;
+  }
+  const t = e.target.closest('[data-line-tile]'); if (!t) return;
+  const id = t.dataset.lineTile;
+  if (state.trafficEdit) {
+    state.trafficHidden = state.trafficHidden.includes(id) ? state.trafficHidden.filter(x => x !== id) : [...state.trafficHidden, id];
+    save(); renderTraffic();
+  } else {
+    state.trafficSel = state.trafficSel === id ? null : id; renderTraffic();
+    if (state.trafficSel) $('#lineDetail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+});
+let busTimer;
+$('#traffic').addEventListener('input', (e) => {
+  if (e.target.id !== 'busSearch') return;
+  clearTimeout(busTimer);
+  const q = e.target.value.trim();
+  if (q.length < 1) { $('#busResults').innerHTML = ''; return; }
+  busTimer = setTimeout(async () => {
+    try {
+      const data = await api(`pt_objects?q=${encodeURIComponent(q)}&type[]=line&count=15`);
+      const lines = (data.pt_objects || []).map(o => o.line).filter(l => l && /bus/i.test(l.physical_modes?.[0]?.id || l.commercial_mode?.name || 'bus'))
+        .map(l => ({ ...lineObj(l, 'bus'), name: l.name, network: l.network?.name || '' }));
+      $('#busResults').innerHTML = lines.length ? lines.map(l => `<div class="list-item">
+          <span class="lt-badge lt-bus" style="background:${esc(l.color)};color:${esc(l.textColor)}">${esc(l.code)}</span>
+          <div class="grow small">${esc(l.name || '')}<div class="muted">${esc(l.network)}</div></div>
+          <button class="chip active" data-bus-add="${esc(JSON.stringify({ id: l.id, code: l.code, color: l.color, textColor: l.textColor, group: 'bus' }))}">Ajouter</button>
+        </div>`).join('') : '<div class="muted small" style="margin-top:8px">Aucune ligne trouvée.</div>';
+    } catch (err) { $('#busResults').innerHTML = `<div class="error">${apiErr(err)}</div>`; }
+  }, 350);
+});
 $('#stopChips').addEventListener('click', (e) => {
   const c = e.target.closest('[data-id]'); if (!c) return;
   selectTrip(c.dataset.id);
@@ -1237,7 +1509,13 @@ $('#stopChips').addEventListener('click', (e) => {
 
 // ---------- Boucle ----------
 let refreshTimer;
-function schedule() { clearInterval(refreshTimer); refreshTimer = setInterval(loadDepartures, REFRESH_MS); }
+function schedule() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (state.tab !== 'traffic') loadDepartures();
+    else if (Date.now() - (state.traffic?.at || 0) > 2 * 60000) loadTraffic();
+  }, REFRESH_MS);
+}
 setInterval(() => { if (!$('#sheet').classList.contains('open') && document.visibilityState === 'visible') render(); }, 1000);
 let hiddenAt = Date.now();
 document.addEventListener('visibilitychange', () => {
@@ -1250,7 +1528,7 @@ document.addEventListener('visibilitychange', () => {
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 openDefaultTrip();
-render();
+setTab('trips');
 loadDepartures();
 schedule();
 </script>
