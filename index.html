@@ -638,10 +638,15 @@ function normDisruption(x) {
 
 // Pannes d'ascenseurs / escaliers mécaniques : sans effet sur le passage des trains et bus, on les ignore
 function isEquipment(x) {
-  if (SEVERE.includes(x.severity?.effect)) return false;   // une vraie interruption qui cite un ascenseur reste affichée
-  const text = [x.cause, x.category, ...(x.tags || []).map(t => t.name || t), ...(x.messages || []).map(m => m.text)].join(' ');
-  return /ascenseur|escalier[s]? m[ée]canique|escalator|elevator|trottoir roulant/i.test(text)
-    || (x.impacted_objects || []).some(o => o.pt_object?.embedded_type === 'equipment' || o.impacted_equipment);
+  const EQUIP = /ascenseur|escalier[s]? m[ée]canique|escalator|elevator|trottoir roulant/i;
+  const msgs = x.messages || [];
+  const title = msgs.find(m => (m.channel?.types || []).includes('title'))?.text || x.severity?.name || '';
+  // IDFM classe souvent une panne d'ascenseur en « service interrompu » : le titre ou l'objet impacté suffit à l'écarter
+  if (EQUIP.test(title) && !/trafic|interromp|circulation/i.test(title)) return true;
+  if ((x.impacted_objects || []).some(o => o.pt_object?.embedded_type === 'equipment' || o.impacted_equipment)) return true;
+  // Sinon, une vraie interruption qui cite un ascenseur dans son détail reste affichée
+  if (SEVERE.includes(x.severity?.effect)) return false;
+  return EQUIP.test([x.cause, x.category, ...(x.tags || []).map(t => t.name || t), ...msgs.map(m => m.text)].join(' '));
 }
 
 function summarizeDisruptions(all, deps) {
