@@ -592,6 +592,13 @@ async function fetchJourneys(t) {
     datetime = toNavitia(new Date(last.getTime() + 60000));
   }
   const deps = [...found.values()].sort((a, b) => a.time - b.time);
+  // Un bus n'est « perturbé » que pour une vraie perturbation (pas une panne d'ascenseur ni une info passée)
+  deps.forEach(d => {
+    d.disruptionIds = (d.disruptionIds || []).filter(id => {
+      const x = disruptions.get(id);
+      return x && x.status !== 'past' && x.status !== 'future' && !isEquipment(x);
+    });
+  });
   state.disruptions[t.id] = summarizeDisruptions(disruptions, deps);
   await applyLive(t.stopId, deps);
   deps.sort((a, b) => a.time - b.time);
