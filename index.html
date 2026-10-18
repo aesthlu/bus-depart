@@ -636,12 +636,20 @@ function normDisruption(x) {
   return { id: x.id, title, detail: detail === title ? '' : detail, begin, end, effect, status: x.status || 'active', kind };
 }
 
+// Pannes d'ascenseurs / escaliers mécaniques : sans effet sur le passage des trains et bus, on les ignore
+function isEquipment(x) {
+  if (SEVERE.includes(x.severity?.effect)) return false;   // une vraie interruption qui cite un ascenseur reste affichée
+  const text = [x.cause, x.category, ...(x.tags || []).map(t => t.name || t), ...(x.messages || []).map(m => m.text)].join(' ');
+  return /ascenseur|escalier[s]? m[ée]canique|escalator|elevator|trottoir roulant/i.test(text)
+    || (x.impacted_objects || []).some(o => o.pt_object?.embedded_type === 'equipment' || o.impacted_equipment);
+}
+
 function summarizeDisruptions(all, deps) {
   const codes = new Map(deps.map(d => [d.code, d]));
   const linked = new Set(deps.flatMap(d => d.disruptionIds || []));
   const out = [];
   for (const x of all.values()) {
-    if (x.status && x.status !== 'active') continue;
+    if ((x.status && x.status !== 'active') || isEquipment(x)) continue;
     const lineCodes = (x.impacted_objects || []).map(o => o.pt_object?.line?.code || (o.pt_object?.embedded_type === 'line' ? o.pt_object?.name : null)).filter(Boolean);
     const mine = lineCodes.filter(c => codes.has(c));
     if (!mine.length && !linked.has(x.id)) continue;
@@ -881,7 +889,7 @@ function addReports(data, byLine) {
     const list = byLine[id] || (byLine[id] = []);
     disruptionIdsIn(r).forEach(did => {
       const x = all.get(did);
-      if (x && x.status !== 'past' && !list.some(d => d.id === did)) list.push(normDisruption(x));
+      if (x && x.status !== 'past' && !isEquipment(x) && !list.some(d => d.id === did)) list.push(normDisruption(x));
     });
   }
 }
