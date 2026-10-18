@@ -80,12 +80,19 @@
   .hero .unit { font-size: 20px; font-weight: 600; }
   .hero .sub { margin-top: 10px; font-size: 16px; color: var(--muted); }
   .hero .sub b { color: var(--text); }
-  .disrupt { display: block; width: 100%; text-align: left; margin: 12px 0 0; padding: 10px 12px; border-radius: 14px;
-    background: #FAEEDA; border: 1px solid #EF9F27; color: #633806; font: inherit; }
-  .disrupt-title { font-weight: 700; font-size: 14px; line-height: 1.5; }
-  .disrupt-detail { font-size: 13px; margin-top: 6px; color: #854F0B; }
-  .disrupt-more { font-size: 12px; margin-top: 4px; font-weight: 600; color: #854F0B; }
-  .disrupt-more:empty { display: none; }
+  .dz { margin-top: 10px; }
+  .dz-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    background: color-mix(in srgb, var(--card) 55%, transparent); color: var(--soon); }
+  .dz.severe .dz-pill { background: #FAEEDA; color: #854F0B; border: 1px solid #EF9F27; }
+  .dz.open .dz-pill { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+  .dz-list { margin: 6px auto 0; max-width: 420px; text-align: left; border-radius: 14px; overflow: hidden;
+    background: color-mix(in srgb, var(--card) 80%, transparent); }
+  .dz-item { display: block; width: 100%; text-align: left; padding: 10px 12px; font: inherit; color: var(--text); }
+  .dz-item + .dz-item { border-top: 1px solid var(--line); }
+  .dz-title { font-weight: 600; font-size: 14px; line-height: 1.5; }
+  .dz-until { font-size: 12px; color: var(--muted); }
+  .dz-detail { font-size: 13px; color: var(--muted); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dz-item.full .dz-detail { -webkit-line-clamp: unset; display: block; }
   .disrupt-tag { color: var(--soon); font-weight: 600; }
   .wpill { display: inline-block; margin-top: 12px; padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
     background: color-mix(in srgb, var(--card) 60%, transparent); }
@@ -313,6 +320,7 @@ const state = {
   allDirs: {},
   disruptions: {},                       // tripId -> perturbations actives
   openDisruption: null,
+  disruptOpen: false,
   weather: {},                           // "lat,lon" -> {at, hours: [{t, temp, prob, precip, code}]}                           // stopId -> {"code|direction": {code, direction, color, text}}
   position: null,                        // {lat, lon, acc}
   loading: false,
@@ -574,19 +582,30 @@ function summarizeDisruptions(all, deps) {
   return out;
 }
 
+// Effets qui empêchent vraiment le trajet : la pastille devient plus visible
+const SEVERE = ['NO_SERVICE', 'REDUCED_SERVICE', 'SIGNIFICANT_DELAYS', 'DETOUR'];
+
+// Pastille discrète « ⚠️ 2 infos trafic ▾ » qui déroule la liste des perturbations
 function disruptionBanner(t) {
   const list = state.disruptions[t.id] || [];
   if (!list.length) return '';
-  return list.slice(0, 3).map(x => {
-    const open = state.openDisruption === x.id;
+  const severe = list.some(x => SEVERE.includes(x.effect));
+  const label = `${list.length} info${list.length > 1 ? 's' : ''} trafic`;
+  const open = state.disruptOpen;
+  const items = open ? list.map(x => {
     const until = x.end && x.end - Date.now() < 365 * 86400000
-      ? ` · jusqu’au ${x.end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : '';
-    return `<button class="disrupt" data-disrupt="${esc(x.id)}" aria-expanded="${open}">
-      <div class="disrupt-title">⚠️ ${x.lines.map(l => badge(l, 'display:inline-grid;height:20px;min-width:30px;font-size:12px')).join(' ')} ${esc(x.title)}</div>
-      ${open && x.detail ? `<div class="disrupt-detail">${esc(x.detail).replace(/\n/g, '<br>')}</div>` : ''}
-      <div class="disrupt-more">${until.slice(3) ? until.slice(3) + ' · ' : ''}${x.detail ? (open ? 'Masquer ▴' : 'Voir le détail ▾') : ''}</div>
+      ? `jusqu’au ${x.end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : '';
+    const full = state.openDisruption === x.id;
+    return `<button class="dz-item ${full ? 'full' : ''}" data-disrupt="${esc(x.id)}">
+      <div class="dz-title">${x.lines.map(l => badge(l, 'display:inline-grid;height:20px;min-width:30px;font-size:12px')).join(' ')} ${esc(x.title)}</div>
+      ${until ? `<div class="dz-until">${until}</div>` : ''}
+      ${x.detail ? `<div class="dz-detail">${esc(x.detail).replace(/\n/g, '<br>')}</div>` : ''}
     </button>`;
-  }).join('');
+  }).join('') : '';
+  return `<div class="dz ${severe ? 'severe' : ''} ${open ? 'open' : ''}">
+    <button class="dz-pill" data-dz-toggle aria-expanded="${!!open}">⚠️ ${label} ${open ? '▴' : '▾'}</button>
+    ${items ? `<div class="dz-list">${items}</div>` : ''}
+  </div>`;
 }
 
 // Passages en direct à un arrêt (SIRI Lite). Renvoie [] si indisponible.
@@ -1202,6 +1221,7 @@ $('#margin').addEventListener('change', (e) => { state.margin = Math.min(15, Mat
 $('#settingsBtn').onclick = openSheet;
 $('#closeSheet').onclick = closeSheet;
 $('#main').addEventListener('click', (e) => {
+  if (e.target.closest('[data-dz-toggle]')) { state.disruptOpen = !state.disruptOpen; render(); return; }
   const dz = e.target.closest('[data-disrupt]');
   if (dz) { state.openDisruption = state.openDisruption === dz.dataset.disrupt ? null : dz.dataset.disrupt; render(); return; }
   const sw = e.target.closest('[data-swap]'); if (!sw) return;
